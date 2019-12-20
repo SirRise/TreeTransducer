@@ -2,6 +2,7 @@
 
 namespace Graphodata\GdPdfimport\Parser;
 
+use Graphodata\GdPdfimport\Domain\Model\Document;
 use Graphodata\GdPdfimport\Domain\Model\Node;
 use Graphodata\GdPdfimport\Domain\Model\Section;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
@@ -9,9 +10,9 @@ use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
 final class DOMDocumentTransducer
 {
 
-    const HEADING = '0';
-    const SECTION = '1';
-    const INITIAL = '2';
+    const HEADING = 0;
+    const SECTION = 1;
+    const INITIAL = 2;
 
     /**
      *
@@ -59,6 +60,7 @@ final class DOMDocumentTransducer
 
                 if (NodeTypeUtility::isHeading($node)) {
                     $this->paragraphBuffer[] = $node;
+
                 } else if (NodeTypeUtility::isSection($node)) {
                     if ($this->isInSectionState()) {
                         $this->stack->pop();
@@ -66,10 +68,10 @@ final class DOMDocumentTransducer
                         $this->paragraphBuffer = [];
                         $this->sectionBuffer[] = $section;
                     } else {
-                        throw new WrongStateException();
+                        throw new WrongStateException("");
                     }
                 } else if (NodeTypeUtility::isRootNode($node)) {
-                    return new class {};
+                    return new Document($this->sectionBuffer);
                 }
             }
         }
