@@ -3,18 +3,16 @@
 namespace Graphodata\GdPdfimport\Controller;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
-use TYPO3\CMS\Extbase\Object\ObjectManager;
 use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
-use TYPO3\CMS\Extensionmanager\Utility\FileHandlingUtility;
 
 class PdfController extends ActionController
 {
     /**
      * @var \Graphodata\GdPdfimport\Parser\DOMDocumentTransducer|object
      */
-    protected $parser;
+    protected $transducer;
 
     /**
      * @var string
@@ -22,33 +20,21 @@ class PdfController extends ActionController
     protected $pdf;
 
     /**
-     * @var string
-     */
-    protected $parsedContent;
-
-
-    /**
-     * @var array
-     */
-    protected $ruleSet = [
-
-    ];
-
-    /**
      * @var \DOMDocument
      */
     protected $domDocument;
 
-    public function injectDOMDocumentParser(DOMDocumentTransducer $parser)
+    public function injectDOMDocumentTransducer(DOMDocumentTransducer $transducer)
     {
-        $this->parser = $parser;
+        $this->transducer = $transducer;
     }
 
     public function __construct()
     {
-//        $this->pdf = file_get_contents(\TYPO3\CMS\Core\Core\Environment::getPublicPath() . '/PDF_1.html');
-        $this->pdf = file_get_contents(\TYPO3\CMS\Core\Core\Environment::getPublicPath() . '/parsetest.html');
+//        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1_stripped.html');
+        $this->pdf = file_get_contents(Environment::getPublicPath() . '/parsetest.html');
         $this->domDocument = new \DOMDocument();
+
     }
 
     public function showAction()
@@ -56,7 +42,7 @@ class PdfController extends ActionController
         echo '<pre>';
         $this->domDocument->loadHTML($this->pdf);
         $this->domDocument->normalize();
-        $this->parser->parse($this->domDocument);
+        $this->transducer->transduce($this->domDocument);
     }
 
 }
