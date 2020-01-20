@@ -10,6 +10,7 @@ use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
 use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
+use Graphodata\GdPdfimport\Utility\PageUtility;
 
 final class DOMDocumentTransducer
 {
@@ -135,11 +136,9 @@ final class DOMDocumentTransducer
                     break;
                 case self::LEA_DOC:
                     $this->cleanupBuffers();
-//                    DebuggerUtility::var_dump(NestingUtility::isolateNumbersForNesting($this->sectionBuffer));
                     return NestingUtility::isolateNumbersForNesting($this->sectionBuffer);
                     break;
                 case self::LEA_TEXT:
-
                     $this->insertTextNode($node);
                     break;
                 case self::LEA_IMG:

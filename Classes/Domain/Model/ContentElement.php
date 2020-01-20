@@ -21,6 +21,12 @@ class ContentElement extends AbstractEntity
      */
     protected $uid;
 
+    public function __construct(?string $bodytext, string $type)
+    {
+        $this->bodytext = $bodytext ?? '';
+        $this->ctype = $type;
+    }
+
     /**
      * @return string
      */

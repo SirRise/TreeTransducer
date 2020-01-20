@@ -3,6 +3,7 @@
 namespace Graphodata\GdPdfimport\Controller;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
+use Graphodata\GdPdfimport\Task\ImportRunner;
 use Graphodata\GdPdfimport\Utility\PageUtility;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
@@ -55,13 +56,17 @@ class PdfController extends ActionController
 
     public function showAction(): void
     {
-        $this->domDocument->loadHTML($this->pdf);
-        $this->domDocument->normalize();
+        GeneralUtility::makeInstance(ImportRunner::class, $this->transducer)->run();
+
+
+//        $this->domDocument->loadHTML($this->pdf);
+//        $this->domDocument->normalize();
 //        $this->pageUtility = GeneralUtility::makeInstance(
 //            PageUtility::class,
 //            $this->transducer->transduce($this->domDocument)
 //        );
-        $this->view->assign('parsedContent', $this->transducer->transduce($this->domDocument));
+//        $content = $this->pageUtility->getPages();
+//        $this->view->assign('parsedContent', $content);
     }
 
     public function dataAction(): void

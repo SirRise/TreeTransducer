@@ -2,27 +2,18 @@
 
 namespace Graphodata\GdPdfimport\Task;
 
-
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
-use TYPO3\CMS\Core\DataHandling\DataHandler;
+use Graphodata\GdPdfimport\Utility\PageUtility;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class ImportRunner
 {
 
     /**
-     * @var \Graphodata\GdPdfimport\Parser\DOMDocumentTransducer
+     * @var DOMDocumentTransducer
      */
     protected $transducer;
-
-    /**
-     * @var \TYPO3\CMS\Core\DataHandling\DataHandler
-     */
-    protected $dataHandler;
-
-    public function injectDataHandler(DataHandler $dataHandler): void
-    {
-        $this->dataHandler = $dataHandler;
-    }
 
     public function __construct(DOMDocumentTransducer $transducer)
     {
@@ -31,6 +22,14 @@ class ImportRunner
 
     public function run()
     {
-
+        $pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
+        $domDocument = new \DOMDocument();
+        $domDocument->loadHTML($pdf);
+        $domDocument->normalize();
+        $pageUtility = GeneralUtility::makeInstance(
+            PageUtility::class,
+            $this->transducer->transduce($domDocument)
+        );
+        $pageUtility->createPages();
     }
 }
