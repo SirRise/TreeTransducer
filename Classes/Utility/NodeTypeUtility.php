@@ -2,17 +2,20 @@
 
 namespace Graphodata\GdPdfimport\Utility;
 
+use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
+
 class NodeTypeUtility
 {
-    public static function isRootNode($node): bool
+    public static function isRootNode(string $node): bool
     {
-        return $node->nodeName === NodeTypes::DOCUMENT;
+        return $node === NodeTypes::DOCUMENT;
     }
 
     public static function isHeading($node, $stack): bool
     {
-        return self::isInSectionState($stack)
-            && self::isParagraph($node);
+        return strlen($node->textContent) < 150
+            && preg_match(DOMDocumentTransducer::CHAPTER_REGEX, $node->textContent)
+            && $stack->top() === NodeTypes::SECTION;
     }
 
     public static function isIgnoredNode($node): bool
@@ -20,6 +23,7 @@ class NodeTypeUtility
         return self::isHTML($node)
             || self::isBody($node)
             || self::isMeta($node)
+            || self::isTitle($node)
             || self::isHead($node);
     }
 
@@ -33,6 +37,7 @@ class NodeTypeUtility
             || self::isTbody($node)
             || self::isTr($node)
             || self::isTd($node)
+            || self::isTh($node)
             || self::isSup($node)
             || self::isI($node)
             || self::isA($node)
@@ -50,7 +55,7 @@ class NodeTypeUtility
     public static function isNewSection($node, $stack): bool
     {
         return self::isDiv($node)
-            && self::isRootNode($stack->top);
+            && self::isRootNode($stack->top());
     }
 
     public static function isSectionEnd($node, $stack): bool
@@ -124,6 +129,11 @@ class NodeTypeUtility
         return $node->nodeName === NodeTypes::TR;
     }
 
+    public static function isTh($node): bool
+    {
+        return $node->nodeName === NodeTypes::TH;
+    }
+
     public static function isTd($node): bool
     {
         return $node->nodeName === NodeTypes::TD;
@@ -167,5 +177,10 @@ class NodeTypeUtility
     public static function isImg($node): bool
     {
         return $node->nodeName === NodeTypes::IMG;
+    }
+
+    public static function isTitle($node): bool
+    {
+        return $node->nodeName === NodeTypes::TITLE;
     }
 }

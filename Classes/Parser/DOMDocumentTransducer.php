@@ -1,14 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Parser;
 
-use Graphodata\GdPdfimport\Domain\Model\Document;
-use Graphodata\GdPdfimport\Domain\Model\Node;
-use Graphodata\GdPdfimport\Domain\Model\Section;
 use Graphodata\GdPdfimport\Exception\UnhandledNodeException;
 use Graphodata\GdPdfimport\Exception\WrongStateException;
+use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
+use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 final class DOMDocumentTransducer
 {
@@ -18,8 +19,8 @@ final class DOMDocumentTransducer
     const LEA_DOC = -self::ENT_DOC;
     const ENT_CONTENT = 2;
     const LEA_CONTENT = -self::ENT_CONTENT;
-    const ENT_SECTION = 3;
-    const LEA_SECTION = -self::ENT_SECTION;
+    const ENT_WSECTION = 3;
+    const LEA_WSECTION = -self::ENT_WSECTION;
     const ENT_TEXT = 4;
     const LEA_TEXT = -self::ENT_TEXT;
     const ENT_TABLE = 5;
@@ -30,38 +31,63 @@ final class DOMDocumentTransducer
     const IGNORE = 404;
     const WRONG_STATE = 403;
 
+    const CE_TEXTMEDIA = 'ce_textmedia';
+    const CE_TABLE = 'ce_table';
+
+    const CHAPTER_REGEX = '/^\d\.(\d\.?){0,3}+/';
+
     /**
      * TYPO3 pages
      *
-     * @var Node[]
+     * @var array[]
      */
     protected $sectionBuffer = [];
 
     /**
      * Single CE on pages
      * 
-     * @var Node[]
+     * @var array[]
      */
     protected $subSectionBuffer = [];
 
     /**
      * Content of CE
      *
-     * @var Node[]
+     * @var string[]
      */
     protected $contentBuffer = [];
+
+    /**
+     * @var string[]
+     */
+    protected $headerBuffer = [];
+
+    /**
+     * @var string
+     */
+    protected $wSectionFirstText = '';
 
     /**
      * @var \SplStack
      */
     protected $stack;
 
+    /**
+     * @var bool
+     */
+    protected $firstChecked = false;
+
+    /**
+     * @var string
+     */
+    protected $currentCType = '';
+
     public function __construct()
     {
         $this->stack = new \SplStack();
     }
 
-    public function transduce(\DOMDocument $DOMDocument): Document
+    public function transduce(\DOMDocument $DOMDocument): array
     {
         foreach(Traverser::traverse($DOMDocument) as $item) {
 
@@ -71,18 +97,20 @@ final class DOMDocumentTransducer
             {
                 /* ENTER ACTIONS */
                 case self::ENT_CONTENT:
+                    $this->checkFirstText(utf8_decode($node->textContent));
                     $this->pushNode($node);
-                    print_r($this->contentBuffer);
                     $this->insertNode($node);
                     break;
                 case self::ENT_TABLE:
                     $this->newSubSection();
+                    $this->setSubSectionType(self::CE_TABLE);
                     $this->pushNode($node);
                     $this->insertNode($node);
                     break;
-                case self::ENT_SECTION:
+                case self::ENT_WSECTION:
                     $this->checkStack(NodeTypes::DOCUMENT);
                     $this->stack->push(NodeTypes::SECTION);
+                    $this->firstChecked = false;
                     break;
                 case self::ENT_DOC:
                     $this->pushNode($node);
@@ -92,24 +120,26 @@ final class DOMDocumentTransducer
 
                 /* LEAVE ACTIONS */
                 case self::LEA_CONTENT:
-                    $this->popAndCheckStack(NodeTypes::CONTENT);
+                    $this->popAndCheckStack($node->nodeName);
                     $this->insertNode($node, true);
-                    print_r($this->contentBuffer);
                     break;
                 case self::LEA_TABLE:
-                    $this->popAndCheckStack(NodeTypes::TBODY);
-                    $this->newSubSection();
+                    $this->popAndCheckStack($node->nodeName);
                     $this->insertNode($node, true);
+                    $this->newSubSection();
                     break;
-                case self::LEA_SECTION:
+                case self::LEA_WSECTION:
                     $this->popAndCheckStack(NodeTypes::SECTION);
-                    $this->newSection();
+                    $this->handleSectionEnd();
+                    $this->wSectionFirstText = '';
                     break;
                 case self::LEA_DOC:
-                    echo implode('', $this->contentBuffer);
-                    return new Document($this->sectionBuffer);
+                    $this->cleanupBuffers();
+//                    DebuggerUtility::var_dump(NestingUtility::isolateNumbersForNesting($this->sectionBuffer));
+                    return NestingUtility::isolateNumbersForNesting($this->sectionBuffer);
                     break;
                 case self::LEA_TEXT:
+
                     $this->insertTextNode($node);
                     break;
                 case self::LEA_IMG:
@@ -118,6 +148,7 @@ final class DOMDocumentTransducer
 
                 /* OTHER ACTIONS */
                 case self::IGNORE: break;
+                default: throw new \Exception('Unknown return value: ' . $this->transduceAction($node, $action));
             }
         }
     }
@@ -127,12 +158,12 @@ final class DOMDocumentTransducer
         if ($action === Traverser::ENTER) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
+            } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
+                return self::ENT_DOC;
             } else if (NodeTypeUtility::isNewSection($node, $this->stack)) {
-                return self::ENT_SECTION;
+                return self::ENT_WSECTION;
             } else if (NodeTypeUtility::isContent($node)) {
                 return self::ENT_CONTENT;
-            } else if (NodeTypeUtility::isRootNode($node)) {
-                return self::ENT_DOC;
             } else if (NodeTypeUtility::isText($node)) {
                 return self::ENT_TEXT;
             } else if (NodeTypeUtility::isTable($node)) {
@@ -143,12 +174,12 @@ final class DOMDocumentTransducer
         } else if ($action === Traverser::LEAVE) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
+            } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
+                return self::LEA_DOC;
             } else if (NodeTypeUtility::isSectionEnd($node, $this->stack)) {
-                return self::LEA_SECTION;
+                return self::LEA_WSECTION;
             } else if (NodeTypeUtility::isContent($node)) {
                 return self::LEA_CONTENT;
-            } else if (NodeTypeUtility::isRootNode($node)) {
-                return self::LEA_DOC;
             } else if (NodeTypeUtility::isText($node)) {
                 return self::LEA_TEXT;
             }  else if (NodeTypeUtility::isTable($node)) {
@@ -162,50 +193,91 @@ final class DOMDocumentTransducer
 
     protected function popAndCheckStack(string $expectedState): void
     {
-        if (!($val = $this->stack->pop()) === $expectedState && !self::DEBUG)
+        if (($val = $this->stack->pop()) !== $expectedState)
             throw new WrongStateException("Expected state " . $expectedState . ", got " . $val);
     }
 
     protected function checkStack(string $expectedState): void
     {
-        if (!($val = $this->stack->top()) === $expectedState && !self::DEBUG)
+        if (($val = $this->stack->top()) !== $expectedState)
             throw new WrongStateException("Expected state " . $expectedState . ", got " . $val);
     }
 
     protected function insertNode(\DOMNode $node, bool $closing = false): void
     {
         $tag = '<' . ($closing? '/' : '') . $node->nodeName . '>';
-        $this->contentBuffer[] = htmlspecialchars($tag);
+        $this->contentBuffer[] = ($tag);
     }
 
     protected function insertTextNode(\DOMNode $node): void
     {
-        $this->contentBuffer[] = $node->textContent;
+        $this->contentBuffer[] = utf8_decode($node->textContent);
     }
 
     protected function insertImg(\DOMNode $node): void
     {
         $tag = '<img src="' . $node->getAttribute('src') . '">';
-        $this->contentBuffer[] = htmlspecialchars($tag);
+        $this->contentBuffer[] = ($tag);
     }
 
-    protected function newSection(): void
+    protected function handleSectionEnd(): void
     {
-        $this->subSectionBuffer[] = $this->contentBuffer;
-        $section = new Section($this->subSectionBuffer);
-        $this->sectionBuffer[] = $section;
+        if ($this->headerIsNewSection()) {
+            $this->newSection($this->wSectionFirstText);
+        }
+    }
+
+    protected function newSection(string $title): void
+    {
+        $this->newSubSection();
+        $this->sectionBuffer[$title] = $this->subSectionBuffer;
         $this->contentBuffer = $this->subSectionBuffer = [];
     }
 
     protected function newSubSection(): void
     {
-        $this->sectionBuffer[] = $this->subSectionBuffer;
-        $this->subSectionBuffer = [];
+        $type = $this->currentCType ?: self::CE_TEXTMEDIA;
+        $this->subSectionBuffer[] = [
+            'type' => $type,
+            'bodytext' => implode($this->contentBuffer)
+        ];
+        $this->contentBuffer = [];
+        $this->currentCType = '';
     }
 
     protected function pushNode(\DOMNode $node): void
     {
         $this->stack->push($node->nodeName);
+    }
+
+    protected function cleanupBuffers(): void
+    {
+        if ($this->contentBuffer) {
+            $this->contentBuffer['type'] = $this->currentCType ?: self::CE_TEXTMEDIA;
+            $this->currentCType = '';
+            $this->subSectionBuffer[] = $this->contentBuffer;
+            $this->contentBuffer = [];
+        }
+        if ($this->subSectionBuffer) {
+            $this->sectionBuffer[] = $this->subSectionBuffer;
+            $this->subSectionBuffer = [];
+        }
+    }
+
+    protected function setSubSectionType(string $type): void
+    {
+        $this->currentCType = $type;
+    }
+
+    protected function checkFirstText($text): void
+    {
+        if ($this->wSectionFirstText === '') $this->wSectionFirstText = trim($text);
+        $this->firstChecked = true;
+    }
+
+    protected function headerIsNewSection(): bool
+    {
+        return (bool)preg_match(self::CHAPTER_REGEX, $this->wSectionFirstText);
     }
 
 }

@@ -4,7 +4,9 @@
     'Graphodata.GdPdfimport',
     'Pi1',
     [
-        'Pdf' => 'show'
+        'Pdf' => 'show, data'
     ],
-    []
+    [
+        'Pdf' => 'show, data'
+    ]
 );

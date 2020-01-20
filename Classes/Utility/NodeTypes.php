@@ -15,6 +15,7 @@ final class NodeTypes
     const TBODY = 'tbody';
     const TR = 'tr';
     const TD = 'td';
+    const TH = 'th';
     const DOCUMENT = '#document';
     const TEXT = '#text';
     const SUP = 'sup';
@@ -25,6 +26,7 @@ final class NodeTypes
     const HR = 'hr';
     const IMG = 'img';
     const META = 'meta';
+    const TITLE = 'title';
 
     const CONTENT = 'C';
     const SECTION = 'S';
