@@ -4,12 +4,9 @@ namespace Graphodata\GdPdfimport\Controller;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
 use Graphodata\GdPdfimport\Task\ImportRunner;
-use Graphodata\GdPdfimport\Utility\PageUtility;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class PdfController extends ActionController
 {
@@ -28,28 +25,13 @@ class PdfController extends ActionController
      */
     protected $domDocument;
 
-    /**
-     * @var DataHandler
-     */
-    protected $dataHandler;
-
-    protected $pageUtility;
-
     public function injectDOMDocumentTransducer(DOMDocumentTransducer $transducer): void
     {
         $this->transducer = $transducer;
     }
 
-    public function injectDataHandler(DataHandler $dataHandler): void
-    {
-        $this->dataHandler = $dataHandler;
-    }
-
     public function __construct()
     {
-//        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1_shortened.html');
-//        $this->pdf = file_get_contents(Environment::getPublicPath() . '/parsetest.html');
-//        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1_notsoshort.html');
         $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
         $this->domDocument = new \DOMDocument();
     }
@@ -57,24 +39,6 @@ class PdfController extends ActionController
     public function showAction(): void
     {
         GeneralUtility::makeInstance(ImportRunner::class, $this->transducer)->run();
-
-
-//        $this->domDocument->loadHTML($this->pdf);
-//        $this->domDocument->normalize();
-//        $this->pageUtility = GeneralUtility::makeInstance(
-//            PageUtility::class,
-//            $this->transducer->transduce($this->domDocument)
-//        );
-//        $content = $this->pageUtility->getPages();
-//        $this->view->assign('parsedContent', $content);
-    }
-
-    public function dataAction(): void
-    {
-        $data = [];
-        $cmd = [];
-        $this->dataHandler->start($data, $cmd);
-        $this->dataHandler->process_cmdmap();
     }
 
 }

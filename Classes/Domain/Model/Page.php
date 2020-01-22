@@ -2,7 +2,6 @@
 
 namespace Graphodata\GdPdfimport\Domain\Model;
 
-use Graphodata\GdPdfimport\Utility\NestingUtility;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
 class Page extends AbstractEntity
@@ -23,11 +22,10 @@ class Page extends AbstractEntity
      */
     protected $chapter = '';
 
-    public function __construct(string $title, array $contentElements)
+    public function __construct(string $title, string $chapter, array $contentElements)
     {
-        $chapterIndex = strpos($title, ')');
-        $this->chapter = substr($title, 1, $chapterIndex - 1);
-        $this->title = str_replace('\n', '', substr($title, $chapterIndex + 1));
+        $this->chapter = $chapter;
+        $this->title = $title;
         $this->contentElements = $this->createContentElementObjectArray($contentElements);
     }
 

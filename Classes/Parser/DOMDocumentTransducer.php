@@ -9,8 +9,6 @@ use Graphodata\GdPdfimport\Exception\WrongStateException;
 use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
-use Graphodata\GdPdfimport\Utility\PageUtility;
 
 final class DOMDocumentTransducer
 {
@@ -90,6 +88,8 @@ final class DOMDocumentTransducer
 
     public function transduce(\DOMDocument $DOMDocument): array
     {
+        $transducedContent = [];
+
         foreach(Traverser::traverse($DOMDocument) as $item) {
 
             list($action, $node) = $item;
@@ -136,7 +136,7 @@ final class DOMDocumentTransducer
                     break;
                 case self::LEA_DOC:
                     $this->cleanupBuffers();
-                    return NestingUtility::isolateNumbersForNesting($this->sectionBuffer);
+                    $transducedContent = NestingUtility::isolateNumbersForNesting($this->sectionBuffer);
                     break;
                 case self::LEA_TEXT:
                     $this->insertTextNode($node);
@@ -150,6 +150,7 @@ final class DOMDocumentTransducer
                 default: throw new \Exception('Unknown return value: ' . $this->transduceAction($node, $action));
             }
         }
+        return $transducedContent;
     }
 
     protected function transduceAction(\DOMNode $node, string $action): int
@@ -210,7 +211,7 @@ final class DOMDocumentTransducer
 
     protected function insertTextNode(\DOMNode $node): void
     {
-        $this->contentBuffer[] = utf8_decode($node->textContent);
+        $this->contentBuffer[] = htmlentities(utf8_decode($node->textContent), ENT_NOQUOTES, 'utf-8');
     }
 
     protected function insertImg(\DOMNode $node): void

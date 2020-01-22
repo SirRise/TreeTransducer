@@ -5,10 +5,7 @@ namespace Graphodata\GdPdfimport\Utility;
 use Doctrine\DBAL\FetchMode;
 use Graphodata\GdPdfimport\Domain\Model\Page;
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
-use Helhum\Typo3Console\Database\Configuration\ConnectionConfiguration;
-use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
-use TYPO3\CMS\Extbase\Persistence\Generic\Query;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 
 class NestingUtility
@@ -71,7 +68,7 @@ class NestingUtility
             ->where(
                 $queryBuilder->expr()->like(
                     'title',
-                    $queryBuilder->createNamedParameter($parentChapter . '%')
+                    $queryBuilder->createNamedParameter($queryBuilder->escapeLikeWildcards($parentChapter) . '%')
                 )
             )->orderBy('uid', QueryInterface::ORDER_ASCENDING)
             ->execute();
@@ -79,7 +76,7 @@ class NestingUtility
         if ($result->rowCount() > 0) {
             return $result->fetch(FetchMode::ASSOCIATIVE)['uid'];
         } else {
-            $newPage = new Page($parentChapter, []);
+            $newPage = new Page($parentChapter, $parentChapter, []);
             $newPageParent = self::getPageParent($newPage, $queryBuilder);
             return PageUtility::createPage($newPage, $queryBuilder, $newPageParent);
         }

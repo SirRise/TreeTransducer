@@ -2,7 +2,6 @@
 
 namespace Graphodata\GdPdfimport\Task;
 
-
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
@@ -23,5 +22,6 @@ class ImportTask extends AbstractTask
     {
         $transducer = GeneralUtility::makeInstance(DOMDocumentTransducer::class);
         GeneralUtility::makeInstance(ImportRunner::class, $transducer)->run();
+        return true;
     }
 }
