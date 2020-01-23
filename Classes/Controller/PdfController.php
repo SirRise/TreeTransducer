@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Controller;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
@@ -32,7 +34,8 @@ class PdfController extends ActionController
 
     public function __construct()
     {
-        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
+//        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
+        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_2_stripped.html');
         $this->domDocument = new \DOMDocument();
     }
 

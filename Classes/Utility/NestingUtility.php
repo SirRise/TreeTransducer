@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Utility;
 
 use Doctrine\DBAL\FetchMode;
@@ -7,6 +9,7 @@ use Graphodata\GdPdfimport\Domain\Model\Page;
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
+use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class NestingUtility
 {
@@ -23,6 +26,7 @@ class NestingUtility
      */
     public static function isolateNumbersForNesting(array $array): array
     {
+//        DebuggerUtility::var_dump($array);die;
         return self::array_map_keys($array, [__CLASS__, 'isolateChapterNumbers']);
     }
 

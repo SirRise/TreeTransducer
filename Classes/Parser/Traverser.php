@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Parser;
 
 final class Traverser

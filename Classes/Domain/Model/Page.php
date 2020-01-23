@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Domain\Model;
 
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
+use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class Page extends AbstractEntity
 {

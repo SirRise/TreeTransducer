@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Utility;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
 
-class NodeTypeUtility
+final class NodeTypeUtility
 {
     public static function isRootNode(string $node): bool
     {
@@ -46,12 +48,6 @@ class NodeTypeUtility
             || self::isBr($node);
     }
 
-    public static function skipNode($node): bool
-    {
-        return self::isPageheader($node)
-            || self::isHTML($node);
-    }
-
     public static function isNewSection($node, $stack): bool
     {
         return self::isDiv($node)
@@ -81,7 +77,7 @@ class NodeTypeUtility
 
     public static function isHeader($node): bool
     {
-        return preg_match('/^h[1-6]$/', $node->nodeName);
+        return (bool)preg_match('/^h[1-6]$/', $node->nodeName);
     }
 
     public static function isSpan($node): bool

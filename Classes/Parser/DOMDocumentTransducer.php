@@ -9,6 +9,7 @@ use Graphodata\GdPdfimport\Exception\WrongStateException;
 use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
+use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 final class DOMDocumentTransducer
 {
@@ -98,7 +99,7 @@ final class DOMDocumentTransducer
             {
                 /* ENTER ACTIONS */
                 case self::ENT_CONTENT:
-                    $this->checkFirstText(utf8_decode($node->textContent));
+                    $this->checkFirstText($node->nodeValue);
                     $this->pushNode($node);
                     $this->insertNode($node);
                     break;
@@ -111,13 +112,14 @@ final class DOMDocumentTransducer
                 case self::ENT_WSECTION:
                     $this->checkStack(NodeTypes::DOCUMENT);
                     $this->stack->push(NodeTypes::SECTION);
-                    $this->firstChecked = false;
                     break;
                 case self::ENT_DOC:
                     $this->pushNode($node);
                     break;
                 case self::ENT_IMG: break;
-                case self::ENT_TEXT: break;
+                case self::ENT_TEXT:
+                    $this->insertTextNode($node);
+                    break;
 
                 /* LEAVE ACTIONS */
                 case self::LEA_CONTENT:
@@ -139,7 +141,6 @@ final class DOMDocumentTransducer
                     $transducedContent = NestingUtility::isolateNumbersForNesting($this->sectionBuffer);
                     break;
                 case self::LEA_TEXT:
-                    $this->insertTextNode($node);
                     break;
                 case self::LEA_IMG:
                     $this->insertImg($node);
@@ -150,6 +151,7 @@ final class DOMDocumentTransducer
                 default: throw new \Exception('Unknown return value: ' . $this->transduceAction($node, $action));
             }
         }
+//        DebuggerUtility::var_dump($transducedContent);
         return $transducedContent;
     }
 
@@ -206,18 +208,18 @@ final class DOMDocumentTransducer
     protected function insertNode(\DOMNode $node, bool $closing = false): void
     {
         $tag = '<' . ($closing? '/' : '') . $node->nodeName . '>';
-        $this->contentBuffer[] = ($tag);
+        $this->contentBuffer[] = $tag;
     }
 
     protected function insertTextNode(\DOMNode $node): void
     {
-        $this->contentBuffer[] = htmlentities(utf8_decode($node->textContent), ENT_NOQUOTES, 'utf-8');
+        $this->contentBuffer[] = htmlentities(utf8_decode($node->nodeValue), ENT_NOQUOTES, 'utf-8');
     }
 
     protected function insertImg(\DOMNode $node): void
     {
         $tag = '<img src="' . $node->getAttribute('src') . '">';
-        $this->contentBuffer[] = ($tag);
+        $this->contentBuffer[] = $tag;
     }
 
     protected function handleSectionEnd(): void
@@ -259,7 +261,7 @@ final class DOMDocumentTransducer
             $this->contentBuffer = [];
         }
         if ($this->subSectionBuffer) {
-            $this->sectionBuffer[] = $this->subSectionBuffer;
+            $this->sectionBuffer['Fussnoten'] = $this->subSectionBuffer;
             $this->subSectionBuffer = [];
         }
     }
@@ -269,15 +271,16 @@ final class DOMDocumentTransducer
         $this->currentCType = $type;
     }
 
-    protected function checkFirstText($text): void
+    protected function checkFirstText(string $text): void
     {
-        if ($this->wSectionFirstText === '') $this->wSectionFirstText = trim($text);
-        $this->firstChecked = true;
+        if ($this->wSectionFirstText === '') {
+            $this->wSectionFirstText = trim(htmlentities($text));
+        }
     }
 
     protected function headerIsNewSection(): bool
     {
-        return (bool)preg_match(self::CHAPTER_REGEX, $this->wSectionFirstText);
+        return preg_match(self::CHAPTER_REGEX, $this->wSectionFirstText) === 1;
     }
 
 }

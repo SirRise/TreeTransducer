@@ -18,6 +18,7 @@ final class NodeTypes
     const TH = 'th';
     const DOCUMENT = '#document';
     const TEXT = '#text';
+    const COMMENT = '#comment';
     const SUP = 'sup';
     const BR = 'br';
     const I = 'i';

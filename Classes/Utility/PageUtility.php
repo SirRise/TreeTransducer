@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Utility;
 
 use Graphodata\GdPdfimport\Domain\Model\ContentElement;
@@ -14,7 +16,8 @@ use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 class PageUtility
 {
 
-    protected const DB = 'pages';
+    protected const DB_PAGES = 'pages';
+    protected const DB_TTCONTENT = 'tt_content';
 
     /**
      * @var ConnectionPool
@@ -30,11 +33,6 @@ class PageUtility
      * @var QueryBuilder
      */
     protected $pagesQueryBuilder;
-
-    /**
-     * @var QueryBuilder
-     */
-    protected $ttContentQueryBuilder;
 
     /**
      * @var Connection
@@ -54,40 +52,43 @@ class PageUtility
     public function __construct(array $pages)
     {
         $this->pages = self::createPageObjectArrayFromArray($pages);
+        DebuggerUtility::var_dump($this->pages);
         $this->connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
-        $this->pagesConnection = $this->connectionPool->getConnectionForTable('pages');
-        $this->pagesQueryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
-        $this->ttContentQueryBuilder = $this->connectionPool->getQueryBuilderForTable('tt_content');
-        $this->ttContentConnection = $this->connectionPool->getConnectionForTable('tt_content');
+        $this->pagesConnection = $this->connectionPool->getConnectionForTable(self::DB_PAGES);
+        $this->pagesQueryBuilder = $this->connectionPool->getQueryBuilderForTable(self::DB_PAGES);
+        $this->ttContentConnection = $this->connectionPool->getConnectionForTable(self::DB_TTCONTENT);
     }
 
     public function createPages(): void
     {
         /** @var Page $page */
-//        foreach ($this->pages as $page) {
-//
-//            $parentPage = NestingUtility::getPageParent($page, $this->pagesQueryBuilder);
-//
-//            self::createPage($page, $this->pagesQueryBuilder, $parentPage);
-//
-//            $insertPid = $this->pagesConnection->lastInsertId('pages');
-//
-//            /** @var ContentElement $ce */
-//            foreach ($page->getContentElements() as $ce) {
-//                $this->ttContentConnection
-//                    ->insert('tt_content',
-//                        [
-//                            'bodytext' => $ce->getBodytext(),
-//                            'pid' => $insertPid,
-//                            'CType' => 'textmedia'
-//                        ],
-//                        [
-//                            \PDO::PARAM_STR,
-//                            \PDO::PARAM_INT,
-//                            \PDO::PARAM_STR
-//                        ]);
-//            }
-//        }
+        $execImport = false;
+        if ($execImport) {
+            foreach ($this->pages as $page) {
+
+                $parentPage = NestingUtility::getPageParent($page, $this->pagesQueryBuilder);
+
+                self::createPage($page, $this->pagesQueryBuilder, $parentPage);
+
+                $insertPid = $this->pagesConnection->lastInsertId(self::DB_PAGES);
+
+                /** @var ContentElement $ce */
+                foreach ($page->getContentElements() as $ce) {
+                    $this->ttContentConnection
+                        ->insert(self::DB_TTCONTENT,
+                            [
+                                'bodytext' => $ce->getBodytext(),
+                                'pid' => $insertPid,
+                                'CType' => 'textmedia'
+                            ],
+                            [
+                                \PDO::PARAM_STR,
+                                \PDO::PARAM_INT,
+                                \PDO::PARAM_STR
+                            ]);
+                }
+            }
+        }
     }
 
     public static function createPage(Page $page, QueryBuilder $queryBuilder, int $parentUid): int
@@ -95,14 +96,14 @@ class PageUtility
         /** @var Connection $connection */
         $connection = $queryBuilder->getConnection();
         $qb = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
-        $qb->insert('pages')
+        $qb->insert(self::DB_PAGES)
             ->values([
                 'title' => htmlspecialchars($page->getTitle()),
                 'pid' => $parentUid,
                 'doktype' => 1
             ])
             ->execute();
-        return $connection->lastInsertId('pages');
+        return (int)$connection->lastInsertId(self::DB_PAGES);
     }
 
     public static function createPageObjectArrayFromArray(array $pages): array

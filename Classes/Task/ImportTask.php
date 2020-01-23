@@ -18,7 +18,7 @@ class ImportTask extends AbstractTask
      *
      * @return bool Returns TRUE on successful execution, FALSE on error
      */
-    public function execute()
+    public function execute(): bool
     {
         $transducer = GeneralUtility::makeInstance(DOMDocumentTransducer::class);
         GeneralUtility::makeInstance(ImportRunner::class, $transducer)->run();

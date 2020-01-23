@@ -20,9 +20,10 @@ class ImportRunner
         $this->transducer = $transducer;
     }
 
-    public function run()
+    public function run(): void
     {
-        $pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
+        $pdf = file_get_contents(Environment::getPublicPath() . '/PDF_2_stripped.html');
+//        $pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
         $domDocument = new \DOMDocument();
         $domDocument->loadHTML($pdf);
         $domDocument->normalize();
