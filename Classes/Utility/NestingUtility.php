@@ -7,9 +7,9 @@ namespace Graphodata\GdPdfimport\Utility;
 use Doctrine\DBAL\FetchMode;
 use Graphodata\GdPdfimport\Domain\Model\Page;
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
+use Graphodata\GdPdfimport\Task\ImportRunner;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class NestingUtility
 {
@@ -17,6 +17,11 @@ class NestingUtility
      * @var int
      */
     public static $currentParent = 0;
+
+    /**
+     * @var array
+     */
+    public static $cache = [ImportRunner::PART + 1];
 
     /**
      * Gets chapter numbers, wraps them in parenthesis and puts them in front of the title
@@ -54,17 +59,19 @@ class NestingUtility
         return ['(' . $matches[0] . ')' . $chapterName => $chapterContent];
     }
 
-    public static function getPageParent(Page $page, QueryBuilder $queryBuilder): int
+    public static function getPageParent(Page $page, QueryBuilder $queryBuilder, int $pid): int
     {
-        if (!self::pageHasParent($page)) return 1;
-        return self::createParentPageIfMissing($page, $queryBuilder);
+        if (!self::pageHasParent($page)) return $pid;
+        return self::createParentPageIfMissing($page, $queryBuilder, $pid);
     }
 
-    public static function createParentPageIfMissing(Page $page, QueryBuilder $queryBuilder): int
+    protected static function createParentPageIfMissing(Page $page, QueryBuilder $queryBuilder, int $pid): int
     {
         $parentChapter = mb_strlen($page->getChapter()) > 3
             ? substr($page->getChapter(), 0, mb_strlen($page->getChapter()) - 2)
             : substr($page->getChapter(), 0, mb_strlen($page->getChapter()) - 1);
+
+
 
         $result = $queryBuilder
             ->select('uid')
@@ -74,14 +81,21 @@ class NestingUtility
                     'title',
                     $queryBuilder->createNamedParameter($queryBuilder->escapeLikeWildcards($parentChapter) . '%')
                 )
-            )->orderBy('uid', QueryInterface::ORDER_ASCENDING)
+            )
+            ->andWhere(
+                $queryBuilder->expr()->in(
+                    'uid',
+                    self::$cache
+                )
+            )
+            ->orderBy('uid', QueryInterface::ORDER_ASCENDING)
             ->execute();
 
         if ($result->rowCount() > 0) {
             return $result->fetch(FetchMode::ASSOCIATIVE)['uid'];
         } else {
             $newPage = new Page($parentChapter, $parentChapter, []);
-            $newPageParent = self::getPageParent($newPage, $queryBuilder);
+            $newPageParent = self::getPageParent($newPage, $queryBuilder, $pid);
             return PageUtility::createPage($newPage, $queryBuilder, $newPageParent);
         }
     }

@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Graphodata\GdPdfimport\Parser;
 
+use Graphodata\GdPdfimport\Domain\Model\Page;
 use Graphodata\GdPdfimport\Exception\UnhandledNodeException;
 use Graphodata\GdPdfimport\Exception\WrongStateException;
+use Graphodata\GdPdfimport\Task\ImportRunner;
 use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
+use Graphodata\GdPdfimport\Utility\PageUtility;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 final class DOMDocumentTransducer
@@ -34,7 +38,10 @@ final class DOMDocumentTransducer
     const CE_TEXTMEDIA = 'ce_textmedia';
     const CE_TABLE = 'ce_table';
 
+    const IMAGE_PATH = '/fileadmin/pdf_import/';
+
     const CHAPTER_REGEX = '/^\d\.(\d\.?){0,3}+/';
+    const DATE_HEADER_REGEX = '/(januar|februar|m(ä|&auml;)rz|april|mai|ju(n|l)i|august|september|oktober|november|dezember)\s?(1|2)\d{3}/';
 
     /**
      * TYPO3 pages
@@ -45,7 +52,7 @@ final class DOMDocumentTransducer
 
     /**
      * Single CE on pages
-     * 
+     *
      * @var array[]
      */
     protected $subSectionBuffer = [];
@@ -91,12 +98,11 @@ final class DOMDocumentTransducer
     {
         $transducedContent = [];
 
-        foreach(Traverser::traverse($DOMDocument) as $item) {
+        foreach (Traverser::traverse($DOMDocument) as $item) {
 
             list($action, $node) = $item;
 
-            switch ($this->transduceAction($node, $action))
-            {
+            switch ($this->transduceAction($node, $action)) {
                 /* ENTER ACTIONS */
                 case self::ENT_CONTENT:
                     $this->checkFirstText($node->nodeValue);
@@ -116,7 +122,8 @@ final class DOMDocumentTransducer
                 case self::ENT_DOC:
                     $this->pushNode($node);
                     break;
-                case self::ENT_IMG: break;
+                case self::ENT_IMG:
+                    break;
                 case self::ENT_TEXT:
                     $this->insertTextNode($node);
                     break;
@@ -147,11 +154,12 @@ final class DOMDocumentTransducer
                     break;
 
                 /* OTHER ACTIONS */
-                case self::IGNORE: break;
-                default: throw new \Exception('Unknown return value: ' . $this->transduceAction($node, $action));
+                case self::IGNORE:
+                    break;
+                default:
+                    throw new \Exception('Unknown return value: ' . $this->transduceAction($node, $action));
             }
         }
-//        DebuggerUtility::var_dump($transducedContent);
         return $transducedContent;
     }
 
@@ -184,7 +192,7 @@ final class DOMDocumentTransducer
                 return self::LEA_CONTENT;
             } else if (NodeTypeUtility::isText($node)) {
                 return self::LEA_TEXT;
-            }  else if (NodeTypeUtility::isTable($node)) {
+            } else if (NodeTypeUtility::isTable($node)) {
                 return self::LEA_TABLE;
             } else if (NodeTypeUtility::isImg($node)) {
                 return self::LEA_IMG;
@@ -207,7 +215,7 @@ final class DOMDocumentTransducer
 
     protected function insertNode(\DOMNode $node, bool $closing = false): void
     {
-        $tag = '<' . ($closing? '/' : '') . $node->nodeName . '>';
+        $tag = '<' . ($closing ? '/' : '') . $node->nodeName . '>';
         $this->contentBuffer[] = $tag;
     }
 
@@ -218,7 +226,7 @@ final class DOMDocumentTransducer
 
     protected function insertImg(\DOMNode $node): void
     {
-        $tag = '<img src="' . $node->getAttribute('src') . '">';
+        $tag = '<img src="' . $this->createImagePath($node->getAttribute('src')) . '">';
         $this->contentBuffer[] = $tag;
     }
 
@@ -274,13 +282,27 @@ final class DOMDocumentTransducer
     protected function checkFirstText(string $text): void
     {
         if ($this->wSectionFirstText === '') {
-            $this->wSectionFirstText = trim(htmlentities($text));
+            $this->wSectionFirstText = ImportRunner::PART === 3 || ImportRunner::PART === 1
+                ? trim(self::fixFuckingEncoding($text))
+                : trim($text);
         }
+    }
+
+    protected function createImagePath(string $originalPath): string
+    {
+        $filename = substr($originalPath, strrpos($originalPath, '/') + 1);
+        DebuggerUtility::var_dump(Environment::getPublicPath() . self::IMAGE_PATH . 'teil_' . ImportRunner::PART . '/' . $filename);
+        return Environment::getPublicPath() . self::IMAGE_PATH . 'teil_' . ImportRunner::PART . '/' . $filename;
     }
 
     protected function headerIsNewSection(): bool
     {
-        return preg_match(self::CHAPTER_REGEX, $this->wSectionFirstText) === 1;
+        return preg_match(self::CHAPTER_REGEX, ($this->wSectionFirstText)) === 1;
+    }
+
+    public static function fixFuckingEncoding(string $s): string
+    {
+        return htmlentities(utf8_decode($s));
     }
 
 }

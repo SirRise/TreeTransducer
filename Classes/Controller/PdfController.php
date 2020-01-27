@@ -33,11 +33,7 @@ class PdfController extends ActionController
     }
 
     public function __construct()
-    {
-//        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
-        $this->pdf = file_get_contents(Environment::getPublicPath() . '/PDF_2_stripped.html');
-        $this->domDocument = new \DOMDocument();
-    }
+    {}
 
     public function showAction(): void
     {

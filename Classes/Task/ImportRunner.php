@@ -20,17 +20,25 @@ class ImportRunner
         $this->transducer = $transducer;
     }
 
+    const PART = 1;
+
+    const PDFs = [
+        '/PDF_1.html',
+        '/PDF_2_stripped.html',
+        '/PDF_3.html'
+    ];
+
     public function run(): void
     {
-        $pdf = file_get_contents(Environment::getPublicPath() . '/PDF_2_stripped.html');
-//        $pdf = file_get_contents(Environment::getPublicPath() . '/PDF_1.html');
+        $pdf = file_get_contents(Environment::getPublicPath() . self::PDFs[self::PART - 1]);
         $domDocument = new \DOMDocument();
         $domDocument->loadHTML($pdf);
         $domDocument->normalize();
         $pageUtility = GeneralUtility::makeInstance(
             PageUtility::class,
-            $this->transducer->transduce($domDocument)
+            $this->transducer->transduce($domDocument),
+            self::PART + 1
         );
-        $pageUtility->createPages();
+        $pageUtility->createPages(false);
     }
 }

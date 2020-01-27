@@ -26,7 +26,8 @@ final class NodeTypeUtility
             || self::isBody($node)
             || self::isMeta($node)
             || self::isTitle($node)
-            || self::isHead($node);
+            || self::isHead($node)
+            || self::isDate($node);
     }
 
     public static function isContent($node): bool
@@ -68,6 +69,11 @@ final class NodeTypeUtility
     public static function isParagraph($node): bool
     {
         return $node->nodeName === NodeTypes::P;
+    }
+
+    public static function isDate($node): bool
+    {
+        return (bool)preg_match(DOMDocumentTransducer::DATE_HEADER_REGEX, trim($node->nodeValue ?? ''));
     }
 
     public static function isDiv($node): bool
