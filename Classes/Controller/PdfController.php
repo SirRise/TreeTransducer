@@ -6,7 +6,6 @@ namespace Graphodata\GdPdfimport\Controller;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
 use Graphodata\GdPdfimport\Task\ImportRunner;
-use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
@@ -31,9 +30,6 @@ class PdfController extends ActionController
     {
         $this->transducer = $transducer;
     }
-
-    public function __construct()
-    {}
 
     public function showAction(): void
     {

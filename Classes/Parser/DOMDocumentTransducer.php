@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace Graphodata\GdPdfimport\Parser;
 
-use Graphodata\GdPdfimport\Domain\Model\Page;
 use Graphodata\GdPdfimport\Exception\UnhandledNodeException;
 use Graphodata\GdPdfimport\Exception\WrongStateException;
 use Graphodata\GdPdfimport\Task\ImportRunner;
 use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
-use Graphodata\GdPdfimport\Utility\PageUtility;
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 final class DOMDocumentTransducer
 {
@@ -41,7 +37,7 @@ final class DOMDocumentTransducer
     const IMAGE_PATH = '/fileadmin/pdf_import/';
 
     const CHAPTER_REGEX = '/^\d\.(\d\.?){0,3}+/';
-    const DATE_HEADER_REGEX = '/(januar|februar|m(ä|&auml;)rz|april|mai|ju(n|l)i|august|september|oktober|november|dezember)\s?(1|2)\d{3}/';
+    const DATE_HEADER_REGEX = '/^(januar|februar|m(ä|&auml;)rz|april|mai|ju(n|l)i|august|september|oktober|november|dezember)\s?(1|2)\d{3}$/i';
 
     /**
      * TYPO3 pages
@@ -291,8 +287,7 @@ final class DOMDocumentTransducer
     protected function createImagePath(string $originalPath): string
     {
         $filename = substr($originalPath, strrpos($originalPath, '/') + 1);
-        DebuggerUtility::var_dump(Environment::getPublicPath() . self::IMAGE_PATH . 'teil_' . ImportRunner::PART . '/' . $filename);
-        return Environment::getPublicPath() . self::IMAGE_PATH . 'teil_' . ImportRunner::PART . '/' . $filename;
+        return self::IMAGE_PATH . 'teil_' . ImportRunner::PART . '/' . $filename;
     }
 
     protected function headerIsNewSection(): bool
