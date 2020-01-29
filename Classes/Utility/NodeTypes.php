@@ -34,5 +34,4 @@ final class NodeTypes
 
     const CONTENT = 'C';
     const SECTION = 'S';
-    const INITIAL = 'I';
 }

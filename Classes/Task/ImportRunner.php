@@ -21,8 +21,8 @@ class ImportRunner
         $this->transducer = $transducer;
     }
 
-    const PART = 3;
-    const CREATE_CONTENT = false;
+    const PART = 1;
+    const CREATE_CONTENT = true;
 
     const PDFs = [
 //        '/listTest.html',
@@ -48,7 +48,7 @@ class ImportRunner
             $this->transducer->transduce($domDocument),
             self::ROOTPAGES[self::PART - 1]
         );
-        DebuggerUtility::var_dump($pageUtility->getPages());
+//        DebuggerUtility::var_dump($pageUtility->getPages());
         $pageUtility->createPages(self::CREATE_CONTENT);
     }
 }

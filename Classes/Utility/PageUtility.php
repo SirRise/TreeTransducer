@@ -69,11 +69,11 @@ class PageUtility
             foreach ($this->pages as $page) {
 
 
-                $parentPage = NestingUtility::getPageParent($page, $this->pagesQueryBuilder, $this->pid);
-
-                self::createPage($page, $this->pagesQueryBuilder, $parentPage);
-
-                $insertPid = $this->pagesConnection->lastInsertId(self::DB_PAGES);
+//                $parentPage = NestingUtility::getPageParent($page, $this->pagesQueryBuilder, $this->pid);
+//
+//                self::createPage($page, $this->pagesQueryBuilder, $parentPage);
+//
+//                $insertPid = $this->pagesConnection->lastInsertId(self::DB_PAGES);
 
 
                 /** @var ContentElement $ce */
@@ -81,20 +81,20 @@ class PageUtility
 
                     $bodytext = preg_replace('/\n/', '', $ce->getBodytext());
 
-//                    echo $bodytext;
+                    echo $bodytext;
 
-                    $this->ttContentConnection
-                        ->insert(self::DB_TTCONTENT,
-                            [
-                                'bodytext' => $bodytext,
-                                'pid' => $insertPid,
-                                'CType' => 'textmedia'
-                            ],
-                            [
-                                \PDO::PARAM_STR,
-                                \PDO::PARAM_INT,
-                                \PDO::PARAM_STR
-                            ]);
+//                    $this->ttContentConnection
+//                        ->insert(self::DB_TTCONTENT,
+//                            [
+//                                'bodytext' => $bodytext,
+//                                'pid' => $insertPid,
+//                                'CType' => 'textmedia'
+//                            ],
+//                            [
+//                                \PDO::PARAM_STR,
+//                                \PDO::PARAM_INT,
+//                                \PDO::PARAM_STR
+//                            ]);
                 }
             }
         }

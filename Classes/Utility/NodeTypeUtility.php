@@ -354,18 +354,18 @@ final class NodeTypeUtility
      * @param \DOMNode $node
      * @return bool
      */
-    public static function isListBegin(\DOMNode $node)
+    public static function isListBegin(\DOMNode $node, \SplStack $stack)
     {
-        return $node->nodeName === NodeTypes::P && self::childNodesMatchList($node->childNodes);
+        return $stack->isEmpty() && $node->nodeName === NodeTypes::P && self::childNodesMatchList($node->childNodes);
     }
 
     /**
      * @param \DOMNode $node
      * @return bool
      */
-    public static function isListEnd(\DOMNode $node, bool $listMode)
+    public static function isListEnd(\DOMNode $node, \SplStack $stack): bool
     {
-        return $listMode && !self::childNodesMatchList($node->childNodes);
+        return !$stack->isEmpty() && !self::childNodesMatchList($node->childNodes);
     }
 
     /**
@@ -388,9 +388,12 @@ final class NodeTypeUtility
     public static function getListType(\DOMNode $node): string
     {
         if (preg_match('/\(\d{1,2}\)/', $node->childNodes->item(0)->nodeValue)
-         || preg_match('/\d{1,2}\./', $node->childNodes->item(0)->nodeValue))
+         || preg_match('/\d{1,2}\./', $node->childNodes->item(0)->nodeValue)
+        ) {
             return NodeTypes::OL;
-        else if ($node->childNodes->item(0)->nodeValue === '–') return NodeTypes::UL;
+        }
+        else if ($node->childNodes->item(0)->nodeValue === '–')
+            return NodeTypes::UL;
         throw new UnhandledNodeException("Couldn't determine type of list");
     }
 

@@ -83,6 +83,11 @@ final class DOMDocumentTransducer
     protected $stack;
 
     /**
+     * @var \SplStack
+     */
+    protected $listStack;
+
+    /**
      * @var bool
      */
     protected $firstChecked = false;
@@ -92,9 +97,15 @@ final class DOMDocumentTransducer
      */
     protected $currentCType = '';
 
+    /**
+     * @var bool
+     */
+    protected $insideListItem = false;
+
     public function __construct()
     {
         $this->stack = new \SplStack();
+        $this->listStack = new \SplStack();
     }
 
     public function transduce(\DOMDocument $DOMDocument): array
@@ -103,18 +114,24 @@ final class DOMDocumentTransducer
 
         foreach (Traverser::traverse($DOMDocument) as $item) {
 
+            /**
+             * @var \DOMNode $node
+             */
             list($action, $node) = $item;
+
+            $this->checkIfInsideListItem($action, $node);
+
+            if ($this->insideListItem)
+                continue;
 
             switch ($this->transduceAction($node, $action)) {
                 /* ENTER ACTIONS */
                 case self::ENT_CONTENT:
-                    $this->checkFirstText($node->nodeValue);
-                    $this->pushNode($node);
-                    $this->insertNode($node);
+                    $this->handleContent($node);
                     break;
                 case self::ENT_LIST:
-                    $this->pushNode($node);
-                    $this->insertTextNode($node);
+                    $this->pushList($node);
+                    $this->insertListNode($node);
                     break;
                 case self::ENT_TABLE:
                     $this->newSubSection();
@@ -140,6 +157,9 @@ final class DOMDocumentTransducer
                     $this->popAndCheckStack($node->nodeName);
                     $this->insertNode($node, true);
                     break;
+                case self::LEA_LIST:
+                    $this->popList();
+                    break;
                 case self::LEA_TABLE:
                     $this->popAndCheckStack($node->nodeName);
                     $this->insertNode($node, true);
@@ -147,7 +167,6 @@ final class DOMDocumentTransducer
                     break;
                 case self::LEA_WSECTION:
                     $this->popAndCheckStack(NodeTypes::SECTION);
-//                    $this->handleSectionEnd();
                     $this->wSectionFirstText = '';
                     break;
                 case self::LEA_DOC:
@@ -175,7 +194,7 @@ final class DOMDocumentTransducer
         if ($action === Traverser::ENTER) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
-            } else if (NodeTypeUtility::isListBegin($node)) {
+            } else if (NodeTypeUtility::isListBegin($node, $this->listStack)) {
                 return self::ENT_CONTENT;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::ENT_DOC;
@@ -193,8 +212,8 @@ final class DOMDocumentTransducer
         } else if ($action === Traverser::LEAVE) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
-            } else if (NodeTypeUtility::isListEnd($node)) {
-
+            } else if (NodeTypeUtility::isListEnd($node, $this->listStack)) {
+                return self::LEA_LIST;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::LEA_DOC;
             } else if (NodeTypeUtility::isSectionEnd($node, $this->stack)) {
@@ -311,6 +330,47 @@ final class DOMDocumentTransducer
     public static function fixFuckingEncoding(string $s): string
     {
         return htmlentities(utf8_decode($s));
+    }
+
+    protected function insertListNode(\DOMNode $node): void
+    {
+        $this->insertNode(NodeTypes::LI, false);
+        $this->insertTextNode($node->childNodes->item(1));
+        $this->insertNode(NodeTypes::LI, true);
+    }
+
+    protected function handleContent(\DOMNode $node): void
+    {
+        if ($this->listStack->isEmpty()) {
+            $this->checkFirstText($node->nodeValue);
+            $this->pushNode($node);
+            $this->insertNode($node);
+        } else {
+            $this->insertListNode($node);
+        }
+    }
+
+    protected function pushList(\DOMNode $node): void
+    {
+        $this->listStack->push(NodeTypeUtility::getListType($node));
+        $this->insideListItem = true;
+    }
+
+    protected function checkIfInsideListItem(string $action, \DOMNode $node): void
+    {
+        if (
+            $this->insideListItem
+            && $action === Traverser::LEAVE
+            && NodeTypeUtility::isParagraph($node)
+        ) {
+            $this->insideListItem = false;
+        }
+    }
+
+    protected function popList(): void
+    {
+        $type = $this->listStack->pop();
+        $this->insertNode($type, true);
     }
 
 }
