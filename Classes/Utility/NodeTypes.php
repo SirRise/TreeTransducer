@@ -16,6 +16,9 @@ final class NodeTypes
     const TR = 'tr';
     const TD = 'td';
     const TH = 'th';
+    const LI = 'li';
+    const UL = 'ul';
+    const OL = 'ol';
     const DOCUMENT = '#document';
     const TEXT = '#text';
     const COMMENT = '#comment';

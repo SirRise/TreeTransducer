@@ -71,6 +71,11 @@ final class DOMDocumentTransducer
     protected $wSectionFirstText = '';
 
     /**
+     * @var string
+     */
+    protected $nextSectionTitle = '';
+
+    /**
      * @var \SplStack
      */
     protected $stack;
@@ -136,7 +141,7 @@ final class DOMDocumentTransducer
                     break;
                 case self::LEA_WSECTION:
                     $this->popAndCheckStack(NodeTypes::SECTION);
-                    $this->handleSectionEnd();
+//                    $this->handleSectionEnd();
                     $this->wSectionFirstText = '';
                     break;
                 case self::LEA_DOC:
@@ -164,6 +169,8 @@ final class DOMDocumentTransducer
         if ($action === Traverser::ENTER) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
+            } else if (NodeTypeUtility::isListBegin($node)) {
+                return self::ENT_CONTENT;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::ENT_DOC;
             } else if (NodeTypeUtility::isNewSection($node, $this->stack)) {
@@ -226,17 +233,11 @@ final class DOMDocumentTransducer
         $this->contentBuffer[] = $tag;
     }
 
-    protected function handleSectionEnd(): void
-    {
-        if ($this->headerIsNewSection()) {
-            $this->newSection($this->wSectionFirstText);
-        }
-    }
-
     protected function newSection(string $title): void
     {
         $this->newSubSection();
-        $this->sectionBuffer[$title] = $this->subSectionBuffer;
+        $this->sectionBuffer[$this->nextSectionTitle] = $this->subSectionBuffer;
+        $this->nextSectionTitle = $title;
         $this->contentBuffer = $this->subSectionBuffer = [];
     }
 
@@ -281,7 +282,11 @@ final class DOMDocumentTransducer
             $this->wSectionFirstText = ImportRunner::PART === 3 || ImportRunner::PART === 1
                 ? trim(self::fixFuckingEncoding($text))
                 : trim($text);
+            if ($this->headerIsNewSection()) {
+                $this->newSection($this->wSectionFirstText);
+            }
         }
+
     }
 
     protected function createImagePath(string $originalPath): string

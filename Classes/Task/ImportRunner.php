@@ -3,10 +3,10 @@
 namespace Graphodata\GdPdfimport\Task;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
-use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\PageUtility;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class ImportRunner
 {
@@ -22,43 +22,33 @@ class ImportRunner
     }
 
     const PART = 3;
-    const FULL_IMPORT = false;
     const CREATE_CONTENT = false;
 
     const PDFs = [
+//        '/listTest.html',
         '/PDF_1.html',
-        '/PDF_2_stripped.html',
-        '/PDF_3.html'
+        '/PDF_2.html',
+        '/PDF_3.html',
+    ];
+
+    const ROOTPAGES = [
+        2,
+        3,
+        4
     ];
 
     public function run(): void
     {
-
-        if (self::FULL_IMPORT) {
-            foreach ([1,2,3] as $x) {
-                $pdf = file_get_contents(Environment::getPublicPath() . self::PDFs[$x - 1]);
-                $domDocument = new \DOMDocument();
-                $domDocument->loadHTML($pdf);
-                $domDocument->normalize();
-                $pageUtility = GeneralUtility::makeInstance(
-                    PageUtility::class,
-                    $this->transducer->transduce($domDocument),
-                    $x + 1
-                );
-                $pageUtility->createPages(self::CREATE_CONTENT);
-                NestingUtility::$cache = [];
-            }
-        } else {
-            $pdf = file_get_contents(Environment::getPublicPath() . self::PDFs[self::PART - 1]);
-            $domDocument = new \DOMDocument();
-            $domDocument->loadHTML($pdf);
-            $domDocument->normalize();
-            $pageUtility = GeneralUtility::makeInstance(
-                PageUtility::class,
-                $this->transducer->transduce($domDocument),
-                self::PART + 1
-            );
-            $pageUtility->createPages(self::CREATE_CONTENT);
-        }
+        $pdf = file_get_contents(Environment::getPublicPath() . self::PDFs[self::PART - 1]);
+        $domDocument = new \DOMDocument();
+        $domDocument->loadHTML($pdf);
+        $domDocument->normalize();
+        $pageUtility = GeneralUtility::makeInstance(
+            PageUtility::class,
+            $this->transducer->transduce($domDocument),
+            self::ROOTPAGES[self::PART - 1]
+        );
+        DebuggerUtility::var_dump($pageUtility->getPages());
+        $pageUtility->createPages(self::CREATE_CONTENT);
     }
 }

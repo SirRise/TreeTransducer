@@ -81,6 +81,8 @@ class PageUtility
 
                     $bodytext = preg_replace('/\n/', '', $ce->getBodytext());
 
+//                    echo $bodytext;
+
                     $this->ttContentConnection
                         ->insert(self::DB_TTCONTENT,
                             [
