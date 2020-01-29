@@ -27,6 +27,8 @@ final class DOMDocumentTransducer
     const LEA_TABLE = -self::ENT_TABLE;
     const ENT_IMG = 6;
     const LEA_IMG = -self::ENT_IMG;
+    const ENT_LIST = 7;
+    const LEA_LIST = -selF::ENT_LIST;
 
     const IGNORE = 404;
     const WRONG_STATE = 403;
@@ -110,6 +112,10 @@ final class DOMDocumentTransducer
                     $this->pushNode($node);
                     $this->insertNode($node);
                     break;
+                case self::ENT_LIST:
+                    $this->pushNode($node);
+                    $this->insertTextNode($node);
+                    break;
                 case self::ENT_TABLE:
                     $this->newSubSection();
                     $this->setSubSectionType(self::CE_TABLE);
@@ -187,6 +193,8 @@ final class DOMDocumentTransducer
         } else if ($action === Traverser::LEAVE) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
+            } else if (NodeTypeUtility::isListEnd($node)) {
+
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::LEA_DOC;
             } else if (NodeTypeUtility::isSectionEnd($node, $this->stack)) {

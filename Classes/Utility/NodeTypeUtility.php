@@ -369,7 +369,7 @@ final class NodeTypeUtility
     }
 
     /**
-     * @param \DOMNode[] $nodes
+     * @param \DOMNodeList $nodes
      * @return bool
      */
     private static function childNodesMatchList(\DOMNodeList $nodes): bool
@@ -405,6 +405,10 @@ final class NodeTypeUtility
             || $node->nodeValue === '–'; // DON'T CHANGE - THIS IS NOT A DASH
     }
 
+    /**
+     * @param \DOMNode $node
+     * @return bool
+     */
     public static function isComment(\DOMNode $node): bool
     {
         return $node->nodeName === NodeTypes::COMMENT;
