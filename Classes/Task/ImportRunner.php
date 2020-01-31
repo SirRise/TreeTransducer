@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Graphodata\GdPdfimport\Task;
 
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
@@ -25,7 +27,7 @@ class ImportRunner
     const CREATE_CONTENT = true;
 
     const PDFs = [
-//        '/listTest.html',
+        '/lists.html',
         '/PDF_1.html',
         '/PDF_2.html',
         '/PDF_3.html',
@@ -43,11 +45,18 @@ class ImportRunner
         $domDocument = new \DOMDocument();
         $domDocument->loadHTML($pdf);
         $domDocument->normalize();
-        $pageUtility = GeneralUtility::makeInstance(
-            PageUtility::class,
-            $this->transducer->transduce($domDocument),
-            self::ROOTPAGES[self::PART - 1]
-        );
+        try {
+            $pageUtility = GeneralUtility::makeInstance(
+                PageUtility::class,
+                $this->transducer->transduce($domDocument),
+                self::ROOTPAGES[self::PART - 1]
+            );
+        } catch (\Exception $e) {
+            echo '<pre>';
+            print_r($this->transducer->debugBuffer);
+            echo $e->getMessage();
+            die;
+        }
 //        DebuggerUtility::var_dump($pageUtility->getPages());
         $pageUtility->createPages(self::CREATE_CONTENT);
     }

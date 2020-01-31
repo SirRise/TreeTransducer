@@ -79,7 +79,7 @@ class PageUtility
                 /** @var ContentElement $ce */
                 foreach ($page->getContentElements() as $ce) {
 
-                    $bodytext = preg_replace('/\n/', '', $ce->getBodytext());
+                    $bodytext = preg_replace('/\r?\n/', ' ', $ce->getBodytext());
 
                     echo $bodytext;
 

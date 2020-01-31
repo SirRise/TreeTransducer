@@ -351,31 +351,40 @@ final class NodeTypeUtility
     }
 
     /**
-     * @param \DOMNode $node
+     * @param \DOMNode  $node
+     * @param \SplStack $stack
      * @return bool
      */
     public static function isListBegin(\DOMNode $node, \SplStack $stack)
     {
-        return $stack->isEmpty() && $node->nodeName === NodeTypes::P && self::childNodesMatchList($node->childNodes);
+        return $stack->isEmpty() && $node->nodeName === NodeTypes::P && self::childNodesMatchList($node);
+    }
+
+    /**
+     * @param \DOMNode  $node
+     * @param \SplStack $stack
+     * @return bool
+     */
+    public static function isListEnd(\DOMNode $node, \SplStack $stack, bool $insideList): bool
+    {
+        if (!$stack->isEmpty() && !self::childNodesMatchList($node) && $insideList)
+            return true;
+        return false;
     }
 
     /**
      * @param \DOMNode $node
      * @return bool
      */
-    public static function isListEnd(\DOMNode $node, \SplStack $stack): bool
+    public static function childNodesMatchList(\DOMNode $node): bool
     {
-        return !$stack->isEmpty() && !self::childNodesMatchList($node->childNodes);
-    }
-
-    /**
-     * @param \DOMNodeList $nodes
-     * @return bool
-     */
-    private static function childNodesMatchList(\DOMNodeList $nodes): bool
-    {
-        return  $nodes->length === 2
+        $nodes = $node->childNodes;
+        return $node->nodeName === NodeTypes::P
+            && $nodes->length === 2
             && $nodes->item(0)->nodeName === NodeTypes::SPAN
+            && $nodes->item(0)->childNodes->item(1)->nodeName === NodeTypes::SPAN
+            && (trim($nodes->item(0)->childNodes->item(1)->nodeValue) === ''
+                || ord(trim($nodes->item(0)->childNodes->item(1)->nodeValue)) === 194)
             && $nodes->item(1)->nodeName === NodeTypes::SPAN
             && self::nodeValueMatchesListStart($nodes->item(0));
     }
@@ -392,7 +401,8 @@ final class NodeTypeUtility
         ) {
             return NodeTypes::OL;
         }
-        else if ($node->childNodes->item(0)->nodeValue === '–')
+        else if ($node->childNodes->item(0)->nodeValue === '–'
+                || ord($node->childNodes->item(0)->nodeValue) === 195)
             return NodeTypes::UL;
         throw new UnhandledNodeException("Couldn't determine type of list");
     }
@@ -405,7 +415,8 @@ final class NodeTypeUtility
     {
         return preg_match('/\(\d{1,2}\)/', $node->nodeValue)
             || preg_match('/\d{1,2}\./', $node->nodeValue)
-            || $node->nodeValue === '–'; // DON'T CHANGE - THIS IS NOT A DASH
+//            || $node->nodeValue === '–' // DON'T CHANGE - THIS IS NOT A DASH
+            || ord($node->nodeValue) === 195;
     }
 
     /**

@@ -102,6 +102,15 @@ final class DOMDocumentTransducer
      */
     protected $insideListItem = false;
 
+    /**
+     * @var bool
+     */
+    protected $skipContent = false;
+
+    public $currentNode;
+    public $currentAction;
+    public $debugBuffer = [];
+
     public function __construct()
     {
         $this->stack = new \SplStack();
@@ -119,10 +128,23 @@ final class DOMDocumentTransducer
              */
             list($action, $node) = $item;
 
-            $this->checkIfInsideListItem($action, $node);
+            $this->currentNode = $node;
+            $this->currentAction = $action;
 
-            if ($this->insideListItem)
+
+
+
+            if ($this->skipContent) {
+                $this->skipContent = !$this->checkIfLeftListItem($action, $node);
                 continue;
+            } else if ($this->skipLineBreaksBetweenContent($node)) {
+                continue;
+            }
+
+
+
+
+            $this->checkForListEnd($node);
 
             switch ($this->transduceAction($node, $action)) {
                 /* ENTER ACTIONS */
@@ -130,8 +152,9 @@ final class DOMDocumentTransducer
                     $this->handleContent($node);
                     break;
                 case self::ENT_LIST:
+//                    $this->pushNode($node);
                     $this->pushList($node);
-                    $this->insertListNode($node);
+                    $this->insertListItem($node);
                     break;
                 case self::ENT_TABLE:
                     $this->newSubSection();
@@ -142,6 +165,7 @@ final class DOMDocumentTransducer
                 case self::ENT_WSECTION:
                     $this->checkStack(NodeTypes::DOCUMENT);
                     $this->stack->push(NodeTypes::SECTION);
+                    $this->debugBuffer[]=['pushed' => NodeTypes::SECTION];
                     break;
                 case self::ENT_DOC:
                     $this->pushNode($node);
@@ -195,7 +219,7 @@ final class DOMDocumentTransducer
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
             } else if (NodeTypeUtility::isListBegin($node, $this->listStack)) {
-                return self::ENT_CONTENT;
+                return self::ENT_LIST;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::ENT_DOC;
             } else if (NodeTypeUtility::isNewSection($node, $this->stack)) {
@@ -212,7 +236,7 @@ final class DOMDocumentTransducer
         } else if ($action === Traverser::LEAVE) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
-            } else if (NodeTypeUtility::isListEnd($node, $this->listStack)) {
+            } else if (NodeTypeUtility::isListEnd($node, $this->listStack, $this->insideListItem)) {
                 return self::LEA_LIST;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::LEA_DOC;
@@ -231,21 +255,39 @@ final class DOMDocumentTransducer
         throw new UnhandledNodeException("Node with name " . $node->nodeName . " of type " . $node->nodeType . " not known");
     }
 
+    protected function printStack(\SplStack $s): string
+    {
+        $a = [];
+        while (!$s->isEmpty())
+            $a[] = $s->pop();
+        return implode(', ', array_reverse($a));
+    }
+
     protected function popAndCheckStack(string $expectedState): void
     {
+        $this->debugBuffer[] = ['pop' => $this->stack->top()];
         if (($val = $this->stack->pop()) !== $expectedState)
-            throw new WrongStateException("Expected state " . $expectedState . ", got " . $val);
+            throw new WrongStateException("[POP] Expected state " . $expectedState . ", got " . $val);
     }
 
     protected function checkStack(string $expectedState): void
     {
         if (($val = $this->stack->top()) !== $expectedState)
-            throw new WrongStateException("Expected state " . $expectedState . ", got " . $val);
+            throw new WrongStateException("[TOP] Expected state " . $expectedState . ", got " . $val);
     }
 
     protected function insertNode(\DOMNode $node, bool $closing = false): void
     {
         $tag = '<' . ($closing ? '/' : '') . $node->nodeName . '>';
+        $this->contentBuffer[] = $tag;
+    }
+
+    protected function insertListItem(\DOMNode $node): void
+    {
+        $tag = '<' . NodeTypes::LI . '>';
+        $this->contentBuffer[] = $tag;
+        $this->insertTextNode($node->childNodes->item(1));
+        $tag = '</' . NodeTypes::LI . '>';
         $this->contentBuffer[] = $tag;
     }
 
@@ -281,6 +323,7 @@ final class DOMDocumentTransducer
 
     protected function pushNode(\DOMNode $node): void
     {
+        $this->debugBuffer[] = ['pushed' => $node->nodeName];
         $this->stack->push($node->nodeName);
     }
 
@@ -332,13 +375,6 @@ final class DOMDocumentTransducer
         return htmlentities(utf8_decode($s));
     }
 
-    protected function insertListNode(\DOMNode $node): void
-    {
-        $this->insertNode(NodeTypes::LI, false);
-        $this->insertTextNode($node->childNodes->item(1));
-        $this->insertNode(NodeTypes::LI, true);
-    }
-
     protected function handleContent(\DOMNode $node): void
     {
         if ($this->listStack->isEmpty()) {
@@ -346,31 +382,47 @@ final class DOMDocumentTransducer
             $this->pushNode($node);
             $this->insertNode($node);
         } else {
-            $this->insertListNode($node);
+            $this->insertListItem($node);
+            $this->skipContent = true;
         }
     }
 
     protected function pushList(\DOMNode $node): void
     {
-        $this->listStack->push(NodeTypeUtility::getListType($node));
-        $this->insideListItem = true;
+        $type = NodeTypeUtility::getListType($node);
+        $this->listStack->push($type);
+        $this->contentBuffer[] = '<' . $type . '>';
+        $this->skipContent = true;
     }
 
-    protected function checkIfInsideListItem(string $action, \DOMNode $node): void
+    protected function checkIfLeftListItem(string $action, \DOMNode $node): bool
     {
-        if (
-            $this->insideListItem
-            && $action === Traverser::LEAVE
-            && NodeTypeUtility::isParagraph($node)
-        ) {
-            $this->insideListItem = false;
-        }
+        return $action === Traverser::LEAVE
+            && NodeTypeUtility::isParagraph($node);
     }
 
     protected function popList(): void
     {
         $type = $this->listStack->pop();
-        $this->insertNode($type, true);
+        $this->contentBuffer[] = '</' . $type . '>';
+    }
+
+    private function checkForListEnd(\DOMNode $node)
+    {
+        if (!$this->listStack->isEmpty()
+            && !NodeTypeUtility::childNodesMatchList($node)
+        ) {
+            $type = $this->listStack->pop();
+            $this->contentBuffer[] = '</' . $type . '>';
+        }
+    }
+
+    private function skipLineBreaksBetweenContent(\DOMNode $node)
+    {
+        return !$this->stack->isEmpty()
+            && $this->stack->top() === NodeTypes::SECTION
+            && trim($node->nodeValue) === ''
+            && $node->nodeName === NodeTypes::TEXT;
     }
 
 }
