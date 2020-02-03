@@ -6,6 +6,7 @@ namespace Graphodata\GdPdfimport\Utility;
 
 use Graphodata\GdPdfimport\Exception\UnhandledNodeException;
 use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
+use Graphodata\GdPdfimport\Stack\Stack;
 
 /**
  * Class NodeTypeUtility
@@ -25,10 +26,10 @@ final class NodeTypeUtility
 
     /**
      * @param \DOMNode  $node
-     * @param \SplStack $stack
+     * @param Stack $stack
      * @return bool
      */
-    public static function isHeading(\DOMNode $node, \SplStack $stack): bool
+    public static function isHeading(\DOMNode $node, Stack $stack): bool
     {
         return strlen($node->textContent) < 150
             && preg_match(DOMDocumentTransducer::CHAPTER_REGEX, $node->textContent)
@@ -78,10 +79,10 @@ final class NodeTypeUtility
 
     /**
      * @param \DOMNode  $node
-     * @param \SplStack $stack
+     * @param Stack $stack
      * @return bool
      */
-    public static function isNewSection(\DOMNode $node, \SplStack $stack): bool
+    public static function isNewSection(\DOMNode $node, Stack $stack): bool
     {
         return self::isDiv($node)
             && self::isRootNode($stack->top());
@@ -89,20 +90,20 @@ final class NodeTypeUtility
 
     /**
      * @param \DOMNode  $node
-     * @param \SplStack $stack
+     * @param Stack $stack
      * @return bool
      */
-    public static function isSectionEnd(\DOMNode $node, \SplStack $stack): bool
+    public static function isSectionEnd(\DOMNode $node, Stack $stack): bool
     {
         return self::isDiv($node)
             && self::isInSectionState($stack);
     }
 
     /**
-     * @param \SplStack $stack
+     * @param Stack $stack
      * @return bool
      */
-    public static function isInSectionState(\SplStack $stack): bool
+    public static function isInSectionState(Stack $stack): bool
     {
         return $stack->top() === NodeTypes::SECTION;
     }
@@ -352,20 +353,22 @@ final class NodeTypeUtility
 
     /**
      * @param \DOMNode  $node
-     * @param \SplStack $stack
+     * @param Stack $stack
      * @return bool
      */
-    public static function isListBegin(\DOMNode $node, \SplStack $stack)
+    public static function isListBegin(\DOMNode $node, Stack $stack)
     {
-        return $stack->isEmpty() && $node->nodeName === NodeTypes::P && self::childNodesMatchList($node);
+        return $stack->isEmpty()
+            && $node->nodeName === NodeTypes::P
+            && self::childNodesMatchList($node);
     }
 
     /**
      * @param \DOMNode  $node
-     * @param \SplStack $stack
+     * @param Stack $stack
      * @return bool
      */
-    public static function isListEnd(\DOMNode $node, \SplStack $stack, bool $insideList): bool
+    public static function isListEnd(\DOMNode $node, Stack $stack, bool $insideList): bool
     {
         if (!$stack->isEmpty() && !self::childNodesMatchList($node) && $insideList)
             return true;

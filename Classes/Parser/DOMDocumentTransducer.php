@@ -6,6 +6,7 @@ namespace Graphodata\GdPdfimport\Parser;
 
 use Graphodata\GdPdfimport\Exception\UnhandledNodeException;
 use Graphodata\GdPdfimport\Exception\WrongStateException;
+use Graphodata\GdPdfimport\Stack\Stack;
 use Graphodata\GdPdfimport\Task\ImportRunner;
 use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
@@ -78,12 +79,12 @@ final class DOMDocumentTransducer
     protected $nextSectionTitle = '';
 
     /**
-     * @var \SplStack
+     * @var Stack
      */
     protected $stack;
 
     /**
-     * @var \SplStack
+     * @var Stack
      */
     protected $listStack;
 
@@ -113,8 +114,8 @@ final class DOMDocumentTransducer
 
     public function __construct()
     {
-        $this->stack = new \SplStack();
-        $this->listStack = new \SplStack();
+        $this->stack = new Stack();
+        $this->listStack = new Stack();
     }
 
     public function transduce(\DOMDocument $DOMDocument): array
@@ -131,18 +132,12 @@ final class DOMDocumentTransducer
             $this->currentNode = $node;
             $this->currentAction = $action;
 
-
-
-
             if ($this->skipContent) {
                 $this->skipContent = !$this->checkIfLeftListItem($action, $node);
                 continue;
             } else if ($this->skipLineBreaksBetweenContent($node)) {
                 continue;
             }
-
-
-
 
             $this->checkForListEnd($node);
 
@@ -152,7 +147,6 @@ final class DOMDocumentTransducer
                     $this->handleContent($node);
                     break;
                 case self::ENT_LIST:
-//                    $this->pushNode($node);
                     $this->pushList($node);
                     $this->insertListItem($node);
                     break;
@@ -255,7 +249,7 @@ final class DOMDocumentTransducer
         throw new UnhandledNodeException("Node with name " . $node->nodeName . " of type " . $node->nodeType . " not known");
     }
 
-    protected function printStack(\SplStack $s): string
+    protected function printStack(Stack $s): string
     {
         $a = [];
         while (!$s->isEmpty())
