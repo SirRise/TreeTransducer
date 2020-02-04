@@ -12,10 +12,14 @@ use Graphodata\GdPdfimport\Utility\NestingUtility;
 use Graphodata\GdPdfimport\Utility\NodeTypes;
 use Graphodata\GdPdfimport\Utility\NodeTypeUtility;
 
+/**
+ * Class DOMDocumentTransducer
+ *
+ * @package Graphodata\GdPdfimport\Parser
+ */
 final class DOMDocumentTransducer
 {
     const DEBUG = 0;
-
     const ENT_DOC = 1;
     const LEA_DOC = -self::ENT_DOC;
     const ENT_CONTENT = 2;
@@ -30,15 +34,12 @@ final class DOMDocumentTransducer
     const LEA_IMG = -self::ENT_IMG;
     const ENT_LIST = 7;
     const LEA_LIST = -selF::ENT_LIST;
-
     const IGNORE = 404;
-    const WRONG_STATE = 403;
 
     const CE_TEXTMEDIA = 'ce_textmedia';
     const CE_TABLE = 'ce_table';
 
     const IMAGE_PATH = '/fileadmin/pdf_import/';
-
     const CHAPTER_REGEX = '/^\d\.(\d\.?){0,3}+/';
     const DATE_HEADER_REGEX = '/^(januar|februar|m(ä|&auml;)rz|april|mai|ju(n|l)i|august|september|oktober|november|dezember)\s?(1|2)\d{3}$/i';
 
@@ -81,12 +82,17 @@ final class DOMDocumentTransducer
     /**
      * @var Stack
      */
-    protected $stack;
+    protected $contentStack;
 
     /**
      * @var Stack
      */
     protected $listStack;
+
+    /**
+     * @var stack
+     */
+    protected $listStyleStack;
 
     /**
      * @var bool
@@ -108,16 +114,35 @@ final class DOMDocumentTransducer
      */
     protected $skipContent = false;
 
+    /**
+     * @var
+     */
     public $currentNode;
+    /**
+     * @var
+     */
     public $currentAction;
+    /**
+     * @var array
+     */
     public $debugBuffer = [];
 
+    /**
+     * DOMDocumentTransducer constructor.
+     */
     public function __construct()
     {
-        $this->stack = new Stack();
+        $this->contentStack = new Stack();
         $this->listStack = new Stack();
+        $this->listStyleStack = new Stack();
     }
 
+    /**
+     * @param \DOMDocument $DOMDocument
+     * @return array
+     * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
+     * @throws \Graphodata\GdPdfimport\Exception\WrongStateException
+     */
     public function transduce(\DOMDocument $DOMDocument): array
     {
         $transducedContent = [];
@@ -158,7 +183,7 @@ final class DOMDocumentTransducer
                     break;
                 case self::ENT_WSECTION:
                     $this->checkStack(NodeTypes::DOCUMENT);
-                    $this->stack->push(NodeTypes::SECTION);
+                    $this->contentStack->push(NodeTypes::SECTION);
                     $this->debugBuffer[]=['pushed' => NodeTypes::SECTION];
                     break;
                 case self::ENT_DOC:
@@ -171,12 +196,10 @@ final class DOMDocumentTransducer
                     break;
 
                 /* LEAVE ACTIONS */
+                case self::LEA_LIST:
                 case self::LEA_CONTENT:
                     $this->popAndCheckStack($node->nodeName);
                     $this->insertNode($node, true);
-                    break;
-                case self::LEA_LIST:
-                    $this->popList();
                     break;
                 case self::LEA_TABLE:
                     $this->popAndCheckStack($node->nodeName);
@@ -207,16 +230,22 @@ final class DOMDocumentTransducer
         return $transducedContent;
     }
 
+    /**
+     * @param \DOMNode $node
+     * @param string   $action
+     * @return int
+     * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
+     */
     protected function transduceAction(\DOMNode $node, string $action): int
     {
         if ($action === Traverser::ENTER) {
             if (NodeTypeUtility::isIgnoredNode($node)) {
                 return self::IGNORE;
-            } else if (NodeTypeUtility::isListBegin($node, $this->listStack)) {
+            } else if (NodeTypeUtility::isListBegin($node, $this->listStyleStack)) {
                 return self::ENT_LIST;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::ENT_DOC;
-            } else if (NodeTypeUtility::isNewSection($node, $this->stack)) {
+            } else if (NodeTypeUtility::isNewSection($node, $this->contentStack)) {
                 return self::ENT_WSECTION;
             } else if (NodeTypeUtility::isContent($node)) {
                 return self::ENT_CONTENT;
@@ -234,7 +263,7 @@ final class DOMDocumentTransducer
                 return self::LEA_LIST;
             } else if (NodeTypeUtility::isRootNode($node->nodeName)) {
                 return self::LEA_DOC;
-            } else if (NodeTypeUtility::isSectionEnd($node, $this->stack)) {
+            } else if (NodeTypeUtility::isSectionEnd($node, $this->contentStack)) {
                 return self::LEA_WSECTION;
             } else if (NodeTypeUtility::isContent($node)) {
                 return self::LEA_CONTENT;
@@ -249,33 +278,40 @@ final class DOMDocumentTransducer
         throw new UnhandledNodeException("Node with name " . $node->nodeName . " of type " . $node->nodeType . " not known");
     }
 
-    protected function printStack(Stack $s): string
-    {
-        $a = [];
-        while (!$s->isEmpty())
-            $a[] = $s->pop();
-        return implode(', ', array_reverse($a));
-    }
-
+    /**
+     * @param string $expectedState
+     * @throws \Graphodata\GdPdfimport\Exception\WrongStateException
+     */
     protected function popAndCheckStack(string $expectedState): void
     {
-        $this->debugBuffer[] = ['pop' => $this->stack->top()];
-        if (($val = $this->stack->pop()) !== $expectedState)
+        $this->debugBuffer[] = ['pop' => $this->contentStack->top()];
+        if (($val = $this->contentStack->pop()) !== $expectedState)
             throw new WrongStateException("[POP] Expected state " . $expectedState . ", got " . $val);
     }
 
+    /**
+     * @param string $expectedState
+     * @throws \Graphodata\GdPdfimport\Exception\WrongStateException
+     */
     protected function checkStack(string $expectedState): void
     {
-        if (($val = $this->stack->top()) !== $expectedState)
+        if (($val = $this->contentStack->top()) !== $expectedState)
             throw new WrongStateException("[TOP] Expected state " . $expectedState . ", got " . $val);
     }
 
+    /**
+     * @param \DOMNode $node
+     * @param bool     $closing
+     */
     protected function insertNode(\DOMNode $node, bool $closing = false): void
     {
         $tag = '<' . ($closing ? '/' : '') . $node->nodeName . '>';
         $this->contentBuffer[] = $tag;
     }
 
+    /**
+     * @param \DOMNode $node
+     */
     protected function insertListItem(\DOMNode $node): void
     {
         $tag = '<' . NodeTypes::LI . '>';
@@ -285,17 +321,26 @@ final class DOMDocumentTransducer
         $this->contentBuffer[] = $tag;
     }
 
+    /**
+     * @param \DOMNode $node
+     */
     protected function insertTextNode(\DOMNode $node): void
     {
         $this->contentBuffer[] = htmlentities(utf8_decode($node->nodeValue), ENT_NOQUOTES, 'utf-8');
     }
 
+    /**
+     * @param \DOMNode $node
+     */
     protected function insertImg(\DOMNode $node): void
     {
         $tag = '<img src="' . $this->createImagePath($node->getAttribute('src')) . '">';
         $this->contentBuffer[] = $tag;
     }
 
+    /**
+     * @param string $title
+     */
     protected function newSection(string $title): void
     {
         $this->newSubSection();
@@ -304,6 +349,9 @@ final class DOMDocumentTransducer
         $this->contentBuffer = $this->subSectionBuffer = [];
     }
 
+    /**
+     *
+     */
     protected function newSubSection(): void
     {
         $type = $this->currentCType ?: self::CE_TEXTMEDIA;
@@ -315,31 +363,38 @@ final class DOMDocumentTransducer
         $this->currentCType = '';
     }
 
+    /**
+     * @param \DOMNode $node
+     */
     protected function pushNode(\DOMNode $node): void
     {
         $this->debugBuffer[] = ['pushed' => $node->nodeName];
-        $this->stack->push($node->nodeName);
+        $this->contentStack->push($node->nodeName);
     }
 
+    /**
+     *
+     */
     protected function cleanupBuffers(): void
     {
-        if ($this->contentBuffer) {
-            $this->contentBuffer['type'] = $this->currentCType ?: self::CE_TEXTMEDIA;
-            $this->currentCType = '';
-            $this->subSectionBuffer[] = $this->contentBuffer;
-            $this->contentBuffer = [];
-        }
+        $this->newSubSection();
         if ($this->subSectionBuffer) {
             $this->sectionBuffer['Fussnoten'] = $this->subSectionBuffer;
             $this->subSectionBuffer = [];
         }
     }
 
+    /**
+     * @param string $type
+     */
     protected function setSubSectionType(string $type): void
     {
         $this->currentCType = $type;
     }
 
+    /**
+     * @param string $text
+     */
     protected function checkFirstText(string $text): void
     {
         if ($this->wSectionFirstText === '') {
@@ -353,22 +408,36 @@ final class DOMDocumentTransducer
 
     }
 
+    /**
+     * @param string $originalPath
+     * @return string
+     */
     protected function createImagePath(string $originalPath): string
     {
         $filename = substr($originalPath, strrpos($originalPath, '/') + 1);
         return self::IMAGE_PATH . 'teil_' . ImportRunner::PART . '/' . $filename;
     }
 
+    /**
+     * @return bool
+     */
     protected function headerIsNewSection(): bool
     {
-        return preg_match(self::CHAPTER_REGEX, ($this->wSectionFirstText)) === 1;
+        return preg_match(self::CHAPTER_REGEX, $this->wSectionFirstText) === 1;
     }
 
+    /**
+     * @param string $s
+     * @return string
+     */
     public static function fixFuckingEncoding(string $s): string
     {
         return htmlentities(utf8_decode($s));
     }
 
+    /**
+     * @param \DOMNode $node
+     */
     protected function handleContent(\DOMNode $node): void
     {
         if ($this->listStack->isEmpty()) {
@@ -381,42 +450,68 @@ final class DOMDocumentTransducer
         }
     }
 
+    /**
+     * @param \DOMNode $node
+     * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
+     */
     protected function pushList(\DOMNode $node): void
     {
-        $type = NodeTypeUtility::getListType($node);
+        $type = NodeTypeUtility::getListTagType($node);
         $this->listStack->push($type);
+        $this->listStyleStack->push(NodeTypeUtility::getListStyle($node));
+        if (!$this->listStack->isEmpty()) $this->contentBuffer[] = '<li>';
         $this->contentBuffer[] = '<' . $type . '>';
         $this->skipContent = true;
+        $this->insideListItem = true;
     }
 
+    /**
+     * @param string   $action
+     * @param \DOMNode $node
+     * @return bool
+     */
     protected function checkIfLeftListItem(string $action, \DOMNode $node): bool
     {
         return $action === Traverser::LEAVE
             && NodeTypeUtility::isParagraph($node);
     }
 
-    protected function popList(): void
-    {
-        $type = $this->listStack->pop();
-        $this->contentBuffer[] = '</' . $type . '>';
-    }
-
+    /**
+     * @param \DOMNode $node
+     */
     private function checkForListEnd(\DOMNode $node)
     {
         if (!$this->listStack->isEmpty()
             && !NodeTypeUtility::childNodesMatchList($node)
         ) {
-            $type = $this->listStack->pop();
-            $this->contentBuffer[] = '</' . $type . '>';
+            $this->closeAllListTags();
         }
     }
 
+    /**
+     * @param \DOMNode $node
+     * @return bool
+     */
     private function skipLineBreaksBetweenContent(\DOMNode $node)
     {
-        return !$this->stack->isEmpty()
-            && $this->stack->top() === NodeTypes::SECTION
+        return !$this->contentStack->isEmpty()
+            && $this->contentStack->top() === NodeTypes::SECTION
             && trim($node->nodeValue) === ''
             && $node->nodeName === NodeTypes::TEXT;
     }
 
+    /**
+     *
+     */
+    private function closeAllListTags(): void
+    {
+        foreach ($this->listStack->iterateDown() as $type) {
+            $this->contentBuffer[] = '</' . $type . '>';
+            $this->contentBuffer[] = '</li>';
+        }
+        array_pop($this->contentBuffer);
+        $this->listStack->clear();
+        $this->listStyleStack->clear();
+        $this->insideListItem = false;
+    }
 }

@@ -34,6 +34,7 @@ class PdfController extends ActionController
     public function showAction(): void
     {
         GeneralUtility::makeInstance(ImportRunner::class, $this->transducer)->run();
+        $this->view->assign('parsedContent', ImportRunner::$text);
     }
 
 }

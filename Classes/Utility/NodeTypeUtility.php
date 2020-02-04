@@ -85,7 +85,7 @@ final class NodeTypeUtility
     public static function isNewSection(\DOMNode $node, Stack $stack): bool
     {
         return self::isDiv($node)
-            && self::isRootNode($stack->top());
+            && self::isRootNode((string)$stack->top());
     }
 
     /**
@@ -352,15 +352,16 @@ final class NodeTypeUtility
     }
 
     /**
-     * @param \DOMNode  $node
-     * @param Stack $stack
+     * @param \DOMNode                            $node
+     * @param \Graphodata\GdPdfimport\Stack\Stack $stack
      * @return bool
+     * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
      */
     public static function isListBegin(\DOMNode $node, Stack $stack)
     {
-        return $stack->isEmpty()
-            && $node->nodeName === NodeTypes::P
-            && self::childNodesMatchList($node);
+        return $node->nodeName === NodeTypes::P
+            && self::childNodesMatchList($node)
+            && self::listStyleChanged($node, $stack);
     }
 
     /**
@@ -397,10 +398,12 @@ final class NodeTypeUtility
      * @return string
      * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
      */
-    public static function getListType(\DOMNode $node): string
+    public static function getListTagType(\DOMNode $node): string
     {
-        if (preg_match('/\(\d{1,2}\)/', $node->childNodes->item(0)->nodeValue)
-         || preg_match('/\d{1,2}\./', $node->childNodes->item(0)->nodeValue)
+        if (preg_match(ListTypes::OL_1_PATTERN, $node->childNodes->item(0)->nodeValue)
+         || preg_match(ListTypes::OL_2_PATTERN, $node->childNodes->item(0)->nodeValue)
+         || preg_match(ListTypes::OL_3_PATTERN, $node->childNodes->item(0)->nodeValue)
+         || preg_match(ListTypes::OL_4_PATTERN, $node->childNodes->item(0)->nodeValue)
         ) {
             return NodeTypes::OL;
         }
@@ -412,14 +415,32 @@ final class NodeTypeUtility
 
     /**
      * @param \DOMNode $node
+     * @return int
+     * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
+     */
+    public static function getListStyle(\DOMNode $node): int
+    {
+        $listStyle = trim($node->childNodes->item(0)->nodeValue);
+        if (preg_match(ListTypes::OL_1_PATTERN, $listStyle)) return ListTypes::OL_1;
+        else if (preg_match(ListTypes::OL_2_PATTERN, $listStyle)) return ListTypes::OL_2;
+        else if (preg_match(ListTypes::OL_3_PATTERN, $listStyle)) return ListTypes::OL_3;
+        else if (preg_match(ListTypes::OL_4_PATTERN, $listStyle)) return ListTypes::OL_4;
+        else if (ord($listStyle) === 195) return ListTypes::UL;
+        else throw new UnhandledNodeException("List style " . $listStyle . " not known");
+    }
+
+    /**
+     * @param \DOMNode $node
      * @return bool
      */
     private static function nodeValueMatchesListStart(\DOMNode $node): bool
     {
-        return preg_match('/\(\d{1,2}\)/', $node->nodeValue)
-            || preg_match('/\d{1,2}\./', $node->nodeValue)
-//            || $node->nodeValue === '–' // DON'T CHANGE - THIS IS NOT A DASH
-            || ord($node->nodeValue) === 195;
+        try {
+            self::getListStyle($node);
+            return true;
+        } catch (UnhandledNodeException $e) {
+            return false;
+        }
     }
 
     /**
@@ -429,5 +450,18 @@ final class NodeTypeUtility
     public static function isComment(\DOMNode $node): bool
     {
         return $node->nodeName === NodeTypes::COMMENT;
+    }
+
+    /**
+     * @param \DOMNode                            $node
+     * @param \Graphodata\GdPdfimport\Stack\Stack $stack
+     * @return bool
+     * @throws \Graphodata\GdPdfimport\Exception\UnhandledNodeException
+     */
+    public static function listStyleChanged(\DOMNode $node, Stack $stack)
+    {
+        $oldStyle = $stack->top();
+        $newStyle = self::getListStyle($node);
+        return $oldStyle !== $newStyle;
     }
 }

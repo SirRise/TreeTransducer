@@ -39,24 +39,19 @@ class ImportRunner
         4
     ];
 
+    public static $text = '';
+
     public function run(): void
     {
         $pdf = file_get_contents(Environment::getPublicPath() . self::PDFs[self::PART - 1]);
         $domDocument = new \DOMDocument();
         $domDocument->loadHTML($pdf);
         $domDocument->normalize();
-        try {
-            $pageUtility = GeneralUtility::makeInstance(
-                PageUtility::class,
-                $this->transducer->transduce($domDocument),
-                self::ROOTPAGES[self::PART - 1]
-            );
-        } catch (\Exception $e) {
-            echo '<pre>';
-            print_r($this->transducer->debugBuffer);
-            echo $e->getMessage();
-            die;
-        }
+        $pageUtility = GeneralUtility::makeInstance(
+            PageUtility::class,
+            $this->transducer->transduce($domDocument),
+            self::ROOTPAGES[self::PART - 1]
+        );
 //        DebuggerUtility::var_dump($pageUtility->getPages());
         $pageUtility->createPages(self::CREATE_CONTENT);
     }

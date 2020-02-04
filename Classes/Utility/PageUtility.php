@@ -6,6 +6,7 @@ namespace Graphodata\GdPdfimport\Utility;
 
 use Graphodata\GdPdfimport\Domain\Model\ContentElement;
 use Graphodata\GdPdfimport\Domain\Model\Page;
+use Graphodata\GdPdfimport\Task\ImportRunner;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
@@ -81,7 +82,7 @@ class PageUtility
 
                     $bodytext = preg_replace('/\r?\n/', ' ', $ce->getBodytext());
 
-                    echo $bodytext;
+                    ImportRunner::$text .= $bodytext;
 
 //                    $this->ttContentConnection
 //                        ->insert(self::DB_TTCONTENT,
