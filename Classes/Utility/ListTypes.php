@@ -6,7 +6,8 @@ namespace Graphodata\GdPdfimport\Utility;
 
 final class ListTypes
 {
-    const UL = 1;
+    const UL_1 = 1;
+    const UL_2 = 2;
     const OL_1 = 11;
     const OL_2 = 12;
     const OL_3 = 13;

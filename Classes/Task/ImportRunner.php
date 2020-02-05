@@ -8,7 +8,6 @@ use Graphodata\GdPdfimport\Parser\DOMDocumentTransducer;
 use Graphodata\GdPdfimport\Utility\PageUtility;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class ImportRunner
 {
@@ -27,7 +26,7 @@ class ImportRunner
     const CREATE_CONTENT = true;
 
     const PDFs = [
-        '/lists.html',
+//        '/lists.html',
         '/PDF_1.html',
         '/PDF_2.html',
         '/PDF_3.html',
@@ -52,7 +51,6 @@ class ImportRunner
             $this->transducer->transduce($domDocument),
             self::ROOTPAGES[self::PART - 1]
         );
-//        DebuggerUtility::var_dump($pageUtility->getPages());
         $pageUtility->createPages(self::CREATE_CONTENT);
     }
 }

@@ -400,17 +400,23 @@ final class NodeTypeUtility
      */
     public static function getListTagType(\DOMNode $node): string
     {
-        if (preg_match(ListTypes::OL_1_PATTERN, $node->childNodes->item(0)->nodeValue)
-         || preg_match(ListTypes::OL_2_PATTERN, $node->childNodes->item(0)->nodeValue)
-         || preg_match(ListTypes::OL_3_PATTERN, $node->childNodes->item(0)->nodeValue)
-         || preg_match(ListTypes::OL_4_PATTERN, $node->childNodes->item(0)->nodeValue)
-        ) {
-            return NodeTypes::OL;
-        }
-        else if ($node->childNodes->item(0)->nodeValue === '–'
-                || ord($node->childNodes->item(0)->nodeValue) === 195)
-            return NodeTypes::UL;
-        throw new UnhandledNodeException("Couldn't determine type of list");
+//        if (preg_match(ListTypes::OL_1_PATTERN, $node->childNodes->item(0)->nodeValue)
+//         || preg_match(ListTypes::OL_2_PATTERN, $node->childNodes->item(0)->nodeValue)
+//         || preg_match(ListTypes::OL_3_PATTERN, $node->childNodes->item(0)->nodeValue)
+//         || preg_match(ListTypes::OL_4_PATTERN, $node->childNodes->item(0)->nodeValue)
+//        ) {
+//            return NodeTypes::OL;
+//        }
+//        else if ($node->childNodes->item(0)->nodeValue === '–'
+//                || ord($node->childNodes->item(0)->nodeValue) === 195)
+//            return NodeTypes::UL;
+//        throw new UnhandledNodeException("Couldn't determine type of list");
+
+        $val = self::getListStyle($node);
+        return $val < 10
+            ? NodeTypes::UL
+            : NodeTypes::OL;
+
     }
 
     /**
@@ -425,7 +431,8 @@ final class NodeTypeUtility
         else if (preg_match(ListTypes::OL_2_PATTERN, $listStyle)) return ListTypes::OL_2;
         else if (preg_match(ListTypes::OL_3_PATTERN, $listStyle)) return ListTypes::OL_3;
         else if (preg_match(ListTypes::OL_4_PATTERN, $listStyle)) return ListTypes::OL_4;
-        else if (ord($listStyle) === 195) return ListTypes::UL;
+        else if (ord($listStyle) === 195) return ListTypes::UL_1;
+        else if (ord($listStyle) === 226) return ListTypes::UL_2;
         else throw new UnhandledNodeException("List style " . $listStyle . " not known");
     }
 

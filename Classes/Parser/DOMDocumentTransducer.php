@@ -399,7 +399,7 @@ final class DOMDocumentTransducer
     {
         if ($this->wSectionFirstText === '') {
             $this->wSectionFirstText = ImportRunner::PART === 3 || ImportRunner::PART === 1
-                ? trim(self::fixFuckingEncoding($text))
+                ? trim(self::fixEncoding($text))
                 : trim($text);
             if ($this->headerIsNewSection()) {
                 $this->newSection($this->wSectionFirstText);
@@ -430,7 +430,7 @@ final class DOMDocumentTransducer
      * @param string $s
      * @return string
      */
-    public static function fixFuckingEncoding(string $s): string
+    public static function fixEncoding(string $s): string
     {
         return htmlentities(utf8_decode($s));
     }
@@ -457,10 +457,10 @@ final class DOMDocumentTransducer
     protected function pushList(\DOMNode $node): void
     {
         $type = NodeTypeUtility::getListTagType($node);
+                if (!$this->listStack->isEmpty()) $this->contentBuffer[] = '<li>';
+        $this->contentBuffer[] = '<' . $type . '>';
         $this->listStack->push($type);
         $this->listStyleStack->push(NodeTypeUtility::getListStyle($node));
-        if (!$this->listStack->isEmpty()) $this->contentBuffer[] = '<li>';
-        $this->contentBuffer[] = '<' . $type . '>';
         $this->skipContent = true;
         $this->insideListItem = true;
     }
